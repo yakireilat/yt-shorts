@@ -10,11 +10,10 @@
 :root {
   --bg1: #070B1A; --bg2: #0E1A3A; --ink: #F1F5FF; --muted: rgba(241,245,255,.62);
   --a1: #5EEAD4; --a2: #818CF8; --line: rgba(255,255,255,.08); --capbg: rgba(5,8,20,.0);
-  --grain: .07;
 }
 [data-theme="ember"] { --bg1:#120806; --bg2:#3A1408; --ink:#FFF4E8; --muted:rgba(255,244,232,.6); --a1:#FFB547; --a2:#FF5D3A; --line:rgba(255,220,180,.08); }
 [data-theme="mint"] { --bg1:#03120D; --bg2:#0B3326; --ink:#EFFFF6; --muted:rgba(239,255,246,.6); --a1:#7CFFB2; --a2:#39C6FF; --line:rgba(200,255,230,.08); }
-[data-theme="paper"] { --bg1:#F4EFE6; --bg2:#E6DCCA; --ink:#141414; --muted:rgba(20,20,20,.58); --a1:#E2442F; --a2:#1F3A93; --line:rgba(0,0,0,.07); --grain:.10; }
+[data-theme="paper"] { --bg1:#F4EFE6; --bg2:#E6DCCA; --ink:#141414; --muted:rgba(20,20,20,.58); --a1:#E2442F; --a2:#1F3A93; --line:rgba(0,0,0,.07); }
 [data-theme="ultraviolet"] { --bg1:#0B0516; --bg2:#2A0E4A; --ink:#FAF5FF; --muted:rgba(250,245,255,.6); --a1:#E879F9; --a2:#22D3EE; --line:rgba(240,200,255,.08); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -30,7 +29,6 @@ body { font-family: "Inter Tight", system-ui, sans-serif; color: var(--ink); -we
 #grid { position: absolute; inset: -200px;
   background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
   background-size: 90px 90px; mask-image: radial-gradient(70% 55% at 50% 45%, #000 20%, transparent 80%); }
-#grain { position: absolute; inset: -100px; opacity: var(--grain); mix-blend-mode: overlay; pointer-events: none; background-size: 256px 256px; }
 #vignette { position: absolute; inset: 0; background: radial-gradient(90% 70% at 50% 45%, transparent 55%, rgba(0,0,0,.45) 100%); }
 [data-theme="paper"] #vignette { background: radial-gradient(90% 70% at 50% 45%, transparent 60%, rgba(80,50,10,.18) 100%); }
 
