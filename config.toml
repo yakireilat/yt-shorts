@@ -1,0 +1,54 @@
+# Shorts Machine configuration
+
+[channel]
+series_name = "The Hidden Why"
+niche = "surprising science, engineering, history and economics hidden behind everyday things"
+audience = "curious adults 18-45 who like smart, fast explainers"
+tone = "confident, warm, precise, a little witty; never hype, never clickbait lies"
+language = "en-us"
+handle_cta = ""                 # e.g. "@thehiddenwhy" shown on outro; empty = none
+
+[claude]
+binary = "claude"
+model = ""                       # empty = CLI default; e.g. "sonnet" or "opus"
+research = true                  # allow WebSearch/WebFetch during ideation
+fact_check = true                # second pass to verify claims
+timeout_sec = 600
+retries = 3
+
+[voice]
+model = "models/kokoro-v1.0.onnx"
+voices = "models/voices-v1.0.bin"
+voice = "am_michael"             # try: af_heart, am_michael, bm_george, af_bella, am_fenrir
+speed = 1.08
+scene_gap_sec = 0.18
+
+[video]
+width = 1080
+height = 1920
+fps = 30
+crf = 18
+workers = 4                      # parallel Chromium pages for rendering
+min_sec = 20
+max_sec = 58
+theme = "auto"                   # auto | midnight | ember | mint | paper | ultraviolet
+
+[audio]
+music_dir = "assets/music"       # drop CC0 / licensed tracks here; empty dir = procedural bed
+music_db = -21
+sfx = true
+target_lufs = -14
+
+[publish]
+enabled = false                  # set true after `python -m shorts auth`
+privacy = "public"               # public | unlisted | private
+max_uploads_per_day = 6          # default API quota allows ~6/day; raise after quota extension
+category_id = "27"               # Education
+synthetic_media = true
+made_for_kids = false
+client_secret = "secrets/client_secret.json"
+token = "secrets/token.json"
+
+[paths]
+out = "out"
+db = "data/shorts.db"
