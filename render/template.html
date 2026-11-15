@@ -84,6 +84,68 @@ body { font-family: "Inter Tight", system-ui, sans-serif; color: var(--ink); -we
 .loop { margin-top: 60px; display: flex; align-items: center; gap: 22px; font: 600 30px "JetBrains Mono", monospace; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
 .loop svg { width: 56px; height: 56px; }
 
+
+/* full-bleed photo layer (top ~60%, fades into the background) */
+.photo { position: absolute; left: 0; top: 0; width: 1080px; height: 1220px; overflow: hidden; opacity: 0;
+  -webkit-mask-image: linear-gradient(#000 0%, #000 52%, transparent 100%); }
+.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; will-change: transform; }
+.photo::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg1) 92%, transparent) 0%, color-mix(in srgb, var(--bg1) 55%, transparent) 17%, transparent 32%, transparent 60%, var(--bg1) 100%),
+              linear-gradient(0deg, color-mix(in srgb, var(--a2) 16%, transparent), transparent); }
+.scene.hasphoto { justify-content: flex-end; }
+.scene.hasphoto .hl { font-size: 104px; }
+.scene.hasphoto.hook .hl { font-size: 120px; }
+
+/* diagram */
+.dg { position: relative; width: 860px; }
+.dg svg.arrows { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.dg svg.arrows path { fill: none; stroke: var(--a1); stroke-width: 6; stroke-linecap: round; }
+.dg svg.arrows path.head { stroke-linejoin: round; }
+.node { position: absolute; border-radius: 30px; padding: 22px 30px; display: flex; flex-direction: column; justify-content: center;
+  background: color-mix(in srgb, var(--ink) 7%, transparent); border: 2px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.node .nl { font-size: 52px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.05; }
+.node .nd { font-size: 34px; font-weight: 500; color: var(--muted); margin-top: 6px; line-height: 1.15; }
+.node.center { background: var(--a1); border-color: transparent; }
+.node.center .nl { color: var(--bg1); } .node.center .nd { color: color-mix(in srgb, var(--bg1) 75%, transparent); }
+.node .badge { position: absolute; left: -18px; top: -18px; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  font: 800 26px "JetBrains Mono", monospace; background: var(--a1); color: var(--bg1); }
+.cycle .node, .hub .node { text-align: center; align-items: center; }
+
+/* map */
+.mapbox { position: relative; width: 860px; height: 700px; border-radius: 40px; overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 4%, transparent); border: 2px solid color-mix(in srgb, var(--ink) 10%, transparent); }
+.mapbox svg { position: absolute; inset: 0; }
+.mapbox .land { fill: color-mix(in srgb, var(--ink) 13%, transparent); stroke: color-mix(in srgb, var(--ink) 26%, transparent); stroke-width: 1; }
+.mapbox .hi { fill: var(--a1); fill-opacity: 0; stroke: var(--a1); stroke-width: 2; }
+.mapbox .grat { fill: none; stroke: color-mix(in srgb, var(--ink) 7%, transparent); stroke-width: 1; }
+.mapbox .route { fill: none; stroke: var(--a1); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 2 14; }
+.mapbox .routefull { fill: none; stroke: var(--ink); stroke-width: 7; stroke-linecap: round; }
+.mapbox .routehalo { fill: none; stroke: var(--bg1); stroke-width: 17; stroke-linecap: round; stroke-opacity: .7; }
+.pin { position: absolute; width: 0; height: 0; }
+.pin .dot { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; border-radius: 50%; background: var(--a1); border: 5px solid var(--bg1); }
+.pin .ring { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; border-radius: 50%; border: 4px solid var(--a1); }
+.pin .tag { position: absolute; left: 26px; top: -58px; white-space: nowrap; height: 56px; line-height: 40px; padding: 8px 18px; border-radius: 14px;
+  font-size: 34px; font-weight: 750; background: var(--ink); color: var(--bg1); }
+.pin.left .tag { left: auto; right: 26px; }
+
+/* before / after */
+.ba { position: relative; width: 860px; height: 700px; border-radius: 40px; overflow: hidden; }
+.ba .side { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 48px; }
+.ba .side.before { z-index: 1; background: color-mix(in srgb, var(--ink) 9%, var(--bg1)); }
+.ba .side.after { z-index: 2; background: linear-gradient(160deg, var(--a2), var(--a1)); color: var(--bg1); }
+.ba .side img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ba .side.withimg::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 35%, rgba(0,0,0,.78)); }
+.ba .side.withimg { color: #fff; }
+.ba .tagl { position: relative; z-index: 2; align-self: flex-start; font: 700 30px "JetBrains Mono", monospace; letter-spacing: .12em; text-transform: uppercase;
+  padding: 10px 20px; border-radius: 12px; background: color-mix(in srgb, currentColor 14%, transparent); margin-bottom: 18px; }
+.ba .big { position: relative; z-index: 2; font-size: 72px; font-weight: 850; letter-spacing: -0.035em; line-height: 1.0; max-width: 760px; }
+.ba .side.before .big { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 6px; text-decoration-color: color-mix(in srgb, var(--a2) 80%, transparent); }
+.ba .side.before.withimg .big { color: rgba(255,255,255,.85); }
+.ba .handle { position: absolute; top: 0; bottom: 0; width: 6px; margin-left: -3px; background: var(--ink); z-index: 5; box-shadow: 0 0 30px rgba(0,0,0,.4); }
+.ba .handle::after { content: "⟷"; position: absolute; top: 50%; left: 50%; width: 76px; height: 76px; margin: -38px 0 0 -38px; border-radius: 50%;
+  background: var(--ink); color: var(--bg1); display: grid; place-items: center; font-size: 38px; font-weight: 900; }
+
 /* captions */
 #cap { position: absolute; left: 84px; right: 150px; top: 1300px; height: 150px; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 0 18px;
   font-weight: 800; font-size: 62px; letter-spacing: -0.02em; text-align: center; }
@@ -100,12 +162,16 @@ body { font-family: "Inter Tight", system-ui, sans-serif; color: var(--ink); -we
   <div class="blob" id="b1"></div><div class="blob" id="b2"></div>
   <div id="grid"></div>
   <div id="vignette"></div>
+  <div id="photos"></div>
   <div id="top"></div>
   <div id="series"><b></b><span id="seriesName"></span></div>
   <div id="scenes"></div>
   <div id="cap"></div>
   <div id="flash"></div>
 </div>
+<script src="../node_modules/d3-array/dist/d3-array.min.js"></script>
+<script src="../node_modules/d3-geo/dist/d3-geo.min.js"></script>
+<script src="../node_modules/topojson-client/dist/topojson-client.min.js"></script>
 <script src="engine.js"></script>
 </body>
 </html>

@@ -78,3 +78,18 @@ def performance_summary(con, k=5):
     best = "\n".join(fmt(r) for r in rows[:k])
     worst = "\n".join(fmt(r) for r in rows[-k:])
     return f"Best performing so far:\n{best}\n\nWorst performing so far:\n{worst}\n"
+
+
+def pillar_stats(con) -> dict[str, list[float]]:
+    """avg % viewed of each uploaded short, grouped by content pillar (latest stats snapshot)."""
+    q = """
+    select json_extract(v.spec, '$.pillar') as pillar, s.avg_view_pct as pct from videos v
+    join stats s on s.youtube_id = v.youtube_id
+    where s.fetched_at = (select max(fetched_at) from stats s2 where s2.youtube_id = s.youtube_id)
+      and s.avg_view_pct is not null and s.views >= 50
+    """
+    out: dict[str, list[float]] = {}
+    for r in con.execute(q):
+        if r["pillar"]:
+            out.setdefault(r["pillar"], []).append(float(r["pct"]))
+    return out

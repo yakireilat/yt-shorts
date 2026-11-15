@@ -7,12 +7,13 @@ import time
 
 THEMES = ["midnight", "ember", "mint", "paper", "ultraviolet"]
 
-SCENE_TYPES = ["hook", "statement", "stat", "compare", "list", "timeline", "outro"]
+SCENE_TYPES = ["hook", "statement", "stat", "compare", "list", "timeline", "diagram", "map", "beforeafter", "outro"]
 
 SPEC_SCHEMA = {
     "type": "object",
-    "required": ["topic", "title", "description", "hashtags", "tags", "theme", "sources", "scenes"],
+    "required": ["topic", "pillar", "title", "description", "hashtags", "tags", "theme", "sources", "scenes"],
     "properties": {
+        "pillar": {"type": "string", "description": "which content pillar this short belongs to (exact name given)"},
         "topic": {"type": "string", "description": "short canonical topic name for dedupe"},
         "title": {"type": "string", "description": "YouTube title, <= 60 chars, curiosity + clarity, no lies"},
         "description": {"type": "string", "description": "1-2 sentences + the key source in plain text"},
@@ -48,9 +49,22 @@ SPEC_SCHEMA = {
                                 "label": {"type": "string"},
                                 "value": {"type": "number"},
                                 "display": {"type": "string"},
+                                "image_query": {"type": "string", "description": "beforeafter only: photo search"},
                             },
                         },
                     },
+                    "layout": {"type": "string", "enum": ["flow", "cycle", "hub"], "description": "diagram layout"},
+                    "places": {
+                        "type": "array", "maxItems": 4,
+                        "items": {"type": "object", "required": ["label", "lat", "lon"],
+                                  "properties": {"label": {"type": "string"}, "lat": {"type": "number"},
+                                                 "lon": {"type": "number"}}},
+                    },
+                    "regions": {"type": "array", "items": {"type": "string"}, "maxItems": 8,
+                                "description": "map: English country names to highlight"},
+                    "route": {"type": "boolean", "description": "map: draw an animated path through places in order"},
+                    "image_query": {"type": "string", "description": "optional literal photo search, 2-4 words"},
+                    "image_source": {"type": "string", "enum": ["openverse", "nasa"]},
                 },
             },
         },
@@ -81,6 +95,17 @@ ABSOLUTE RULES
 - list: 2-4 items with short "label" (<= 5 words).
 - timeline: 2-5 items, "label" = year/date, "display" = what happened (<= 6 words).
 - stat: "value" numeric, plus prefix/suffix/decimals and a short "label".
+- diagram: explains a MECHANISM. "layout": flow (cause -> effect chain, 2-5 steps, top to bottom), cycle (3-5 steps
+  that loop), hub (items[0] is the center, 2-4 satellites). items: "label" <= 4 words, optional "display" <= 6 words.
+- map: when WHERE matters. "places": 1-4 with accurate decimal "lat"/"lon" and short "label"; optional "regions"
+  (country names to highlight); "route": true to draw a path through places in order. Headline above the map.
+- beforeafter: exactly 2 items: items[0] = before/old/myth, items[1] = after/new/reality. "label" = short tag
+  (e.g. "1900", "Myth", "Without"), "display" = the state in <= 6 words. Optional "image_query" per item.
+- Use 2-4 DIFFERENT visual scene types per short. Prefer diagram/map/beforeafter whenever they explain better than words.
+- PHOTOS: you may set "image_query" on up to {max_images} scenes (hook preferred, also statement/beforeafter) when a
+  real photo of a CONCRETE, photographable subject helps: an object, animal, place, machine, artifact, spacecraft.
+  2-4 literal words ("red onion halves", "Hoover Dam aerial"). Never abstract ideas, never private people, never
+  brands as the subject. Use "image_source": "nasa" only for space/astronomy subjects.
 - Spell numbers in narration the way they should be SPOKEN (e.g. "two hundred thousand").
 - Pick a theme that matches the mood: midnight (tech/space), ember (history/energy), mint (nature/biology),
   paper (economics/design/editorial), ultraviolet (mind/physics/weird).
@@ -89,6 +114,8 @@ ABSOLUTE RULES
 """
 
 IDEATE = GUIDE + """
+CONTENT PILLAR for this short: "{pillar}" (set "pillar" to exactly this).
+
 {research}
 
 AVOID these already-made topics (and close variants):
@@ -155,34 +182,45 @@ def _extract_json(text: str) -> dict:
     return json.loads(text[s:e + 1])
 
 
-def make_spec(cfg, avoid: list[str], perf: str = "", seed: str = "") -> dict:
+def make_spec(cfg, avoid: list[str], perf: str = "", seed: str = "", pillar: str = "") -> dict:
     ch = cfg.channel
     web = bool(cfg.claude.get("research"))
-    fmt = dict(series=ch["series_name"], niche=ch["niche"], audience=ch["audience"], tone=ch["tone"])
+    fmt = dict(series=ch["series_name"], niche=ch["niche"], audience=ch["audience"], tone=ch["tone"],
+               max_images=int(cfg.get("images", {}).get("max_per_video", 3)))
     research = (
         "First use web search to find a fresh, surprising, well-documented idea in the niche and confirm its key "
         "facts with credible sources (encyclopedias, universities, agencies, reputable press)."
         if web else "Use only facts you are highly confident are true and well documented."
     )
     seed_txt = f"Topic seed for variety (optional to follow): {seed}\n" if seed else ""
-    prompt = IDEATE.format(**fmt, research=research, avoid="\n".join(f"- {a}" for a in avoid) or "- (none yet)",
+    prompt = IDEATE.format(**fmt, research=research, pillar=pillar, avoid="\n".join(f"- {a}" for a in avoid) or "- (none yet)",
                            perf=perf, seed=seed_txt)
     spec = claude_json(cfg, prompt, SPEC_SCHEMA, web)
     if cfg.claude.get("fact_check"):
         prompt2 = FACTCHECK.format(spec=json.dumps(spec, indent=1), web=" using web search" if web else "", **fmt)
         spec = claude_json(cfg, prompt2, SPEC_SCHEMA, web)
+    spec["pillar"] = pillar or spec.get("pillar", "")
     return normalize(spec, cfg)
 
 
-SEEDS = [
-    "everyday objects", "the human body", "transport & aviation", "food chemistry", "architecture",
-    "money & economics", "internet & computers", "animals' weird engineering", "space", "history's small details",
-    "materials science", "weather", "language & words", "sports physics", "design decisions we never notice",
-]
-
-
-def random_seed() -> str:
-    return random.choice(SEEDS)
+def choose_pillar(cfg, stats: dict[str, list[float]]) -> str:
+    """Pick the next content pillar: mostly exploit pillars with higher avg % viewed, keep ~30% exploration."""
+    pillars = list(cfg.channel.get("pillars", [])) or ["general"]
+    rng = random.Random()
+    if rng.random() < 0.3 or not stats:
+        return rng.choice(pillars)
+    scored = []
+    for p in pillars:
+        v = stats.get(p, [])
+        mean = sum(v) / len(v) if len(v) >= 3 else 75.0  # optimistic prior for under-sampled pillars
+        scored.append((max(1.0, mean) ** 2, p))
+    total = sum(w for w, _ in scored)
+    r = rng.random() * total
+    for w, p in scored:
+        r -= w
+        if r <= 0:
+            return p
+    return scored[-1][1]
 
 
 def normalize(spec: dict, cfg) -> dict:
@@ -198,6 +236,15 @@ def normalize(spec: dict, cfg) -> dict:
         sc[-1]["type"] = "outro"
     for s in sc:
         s["narration"] = " ".join(s["narration"].split())
+        t = s["type"]
+        items = s.get("items") or []
+        # downgrade visual scenes that lack the data they need, so the renderer never shows an empty frame
+        if (t == "map" and not (s.get("places") or s.get("regions"))) or \
+           (t == "diagram" and len(items) < 2) or (t == "beforeafter" and len(items) < 2) or \
+           (t in ("compare", "list", "timeline") and len(items) < 2) or (t == "stat" and s.get("value") is None):
+            s["type"] = "statement"
+        if s["type"] == "diagram" and s.get("layout") not in ("flow", "cycle", "hub"):
+            s["layout"] = "flow"
         if not s.get("headline") and s["type"] in ("hook", "statement", "outro"):
             s["headline"] = " ".join(s["narration"].split()[:6])
     spec["hashtags"] = ["#" + h.lstrip("#").replace(" ", "") for h in spec.get("hashtags", [])][:5]

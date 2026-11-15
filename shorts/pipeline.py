@@ -5,7 +5,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import db, ideate, music, qa, tts
+from . import db, ideate, images, music, qa, tts
 from .compose import mux
 from .config import ROOT, rel
 
@@ -19,6 +19,12 @@ def build_from_spec(cfg, spec: dict, run_id: str | None = None) -> tuple[Path, d
     outdir = rel(cfg.paths.out) / run_id
     outdir.mkdir(parents=True, exist_ok=True)
     spec = ideate.normalize(spec, cfg)
+    if cfg.get("images", {}).get("enabled", True):
+        log("images: searching open-licensed photos")
+        try:
+            images.resolve(cfg, spec, outdir)
+        except Exception as e:  # photos are a bonus; never fail the run over them
+            log(f"images: skipped ({e})")
     (outdir / "spec.json").write_text(json.dumps(spec, indent=1))
 
     log("voice: synthesizing narration")
@@ -60,7 +66,9 @@ def produce(cfg, seed: str | None = None):
     avoid = db.recent_topics(con)
     perf = db.performance_summary(con)
     log("ideate: researching + writing with Claude")
-    spec = ideate.make_spec(cfg, avoid, perf, seed or ideate.random_seed())
+    pillar = ideate.choose_pillar(cfg, db.pillar_stats(con))
+    log(f"ideate: pillar = {pillar}")
+    spec = ideate.make_spec(cfg, avoid, perf, seed or "", pillar)
     log(f"ideate: \"{spec['title']}\" ({spec['topic']})")
     return build_from_spec(cfg, spec)
 

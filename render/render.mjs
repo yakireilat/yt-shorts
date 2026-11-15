@@ -15,6 +15,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const [jobPath, outPath] = process.argv.slice(2);
 const job = JSON.parse(fs.readFileSync(jobPath, "utf8"));
 const { width = 1080, height = 1920, fps = 30, crf = 18, workers = 4 } = job.video || {};
+if (job.spec.scenes.some((s) => s.type === "map") && !job.world) {
+  job.world = JSON.parse(fs.readFileSync(path.join(here, "..", "node_modules", "world-atlas", "countries-50m.json"), "utf8"));
+}
 const total = Math.ceil(job.timeline.duration * fps);
 const tmp = path.join(path.dirname(outPath), "parts");
 fs.mkdirSync(tmp, { recursive: true });

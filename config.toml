@@ -2,7 +2,16 @@
 
 [channel]
 series_name = "The Hidden Why"
-niche = "surprising science, engineering, history and economics hidden behind everyday things"
+niche = "how the world really works: the hidden engineering, economics, geography, biology and history behind ordinary things"
+# Rotating pillars keep one recognizable format with endless topics; the analytics loop shifts weight toward winners.
+pillars = [
+  "Everyday engineering (why objects and infrastructure are designed the way they are)",
+  "Money mechanics (why things cost what they cost, how markets and businesses really work)",
+  "Maps & geography (why cities, borders, routes and resources are where they are)",
+  "The body & living things (the surprising mechanics of biology)",
+  "History's hidden details (small decisions that shaped today)",
+  "Space & physics (everyday physics and the cosmos, intuitively)",
+]
 audience = "curious adults 18-45 who like smart, fast explainers"
 tone = "confident, warm, precise, a little witty; never hype, never clickbait lies"
 language = "en-us"
@@ -32,6 +41,13 @@ workers = 4                      # parallel Chromium pages for rendering
 min_sec = 20
 max_sec = 58
 theme = "auto"                   # auto | midnight | ember | mint | paper | ultraviolet
+
+[images]
+enabled = true
+max_per_video = 3                # scenes that may use a real photo
+licenses = "cc0,pdm,by"          # commercial-safe; add "by-sa" if you accept share-alike
+min_width = 1000
+vision_check = true              # Claude looks at candidates and picks / rejects (uses Read tool on thumbnails)
 
 [audio]
 music_dir = "assets/music"       # drop CC0 / licensed tracks here; empty dir = procedural bed

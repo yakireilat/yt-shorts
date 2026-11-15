@@ -46,6 +46,8 @@ def description(spec, cfg):
     parts = [spec.get("description", "").strip()]
     if spec.get("sources"):
         parts.append("Sources:\n" + "\n".join(f"• {s}" for s in spec["sources"][:3]))
+    if spec.get("credits"):
+        parts.append("Images:\n" + "\n".join(f"• {c}" for c in spec["credits"]))
     parts.append(" ".join(spec.get("hashtags", [])))
     return "\n\n".join(p for p in parts if p)[:4900]
 

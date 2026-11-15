@@ -38,6 +38,7 @@ A fully automatic, local, open-source YouTube Shorts factory.
 | 1 Ideate | `shorts/ideate.py` | `claude -p --json-schema` + WebSearch | scene-spec JSON (scenes, narration, metadata) |
 | 2 Fact-check | `shorts/ideate.py` | second `claude -p` pass | corrected spec |
 | 3 Voice | `shorts/tts.py` | **Kokoro-82M** (Apache-2.0, ONNX, CPU, ~real-time×10) | per-scene WAV + word timings |
+| 3b Photos | `shorts/images.py` | Openverse (800M+ CC/PD images) + NASA library, **Claude vision picks/rejects** | licensed photos + credits |
 | 4 Music/SFX | `shorts/music.py` | procedural synth (numpy) or your CC0 tracks in `assets/music/` | music bed, whooshes |
 | 5 Render | `render/render.mjs` + `render/template.html` | **Playwright + Chromium**, HTML/CSS/SVG, deterministic `renderAt(t)` | 1080×1920 30fps frames → H.264 |
 | 6 Mux | `shorts/compose.py` | **FFmpeg** (sidechain ducking, loudnorm −14 LUFS) | `final.mp4` |
@@ -47,6 +48,21 @@ A fully automatic, local, open-source YouTube Shorts factory.
 
 Scheduler: `systemd` timer or cron calls `python -m shorts run` every hour.
 State: `data/shorts.db` (topics, videos, stats). Artifacts: `out/<run-id>/`.
+
+### Real photos without a GPU
+Instead of generating images, the machine **finds** them in open-licensed libraries:
+
+| Source | What | License | Key? |
+|---|---|---|---|
+| **Openverse** (WordPress Foundation) | 800M+ images aggregated from Wikimedia Commons, Flickr CC, Smithsonian, the Met, museums, NASA on Flickr… | filtered to CC0 / public domain / CC BY (commercial-safe) | no |
+| **NASA Image Library** | space & aeronautics imagery | public domain | no |
+| *(optional later)* Pexels / Unsplash APIs | stock photos, strong for everyday objects | own free licenses | free key |
+
+Search relevance is noisy (searching "cut onion halves" returns curries), so the writer adds a literal `image_query`
+to at most 3 scenes. The fetcher builds a numbered contact sheet, and **Claude looks at it** (headless `Read` tool)
+and picks the best image or rejects all of them. On a reject it suggests a better query and the fetcher retries once.
+Credits go into the YouTube description automatically, as CC BY requires. Photos appear full-bleed in the top
+half with a slow Ken Burns zoom, fading into the theme background, so the designed look stays consistent.
 
 ### Why not Higgsfield-style AI video?
 Open models (Wan 2.x, LTX-Video, HunyuanVideo) are good but need 12–24 GB VRAM and minutes per clip,
@@ -74,12 +90,34 @@ Baked into the prompt + renderer:
 - **Disclosure**: synthetic-voice flag set (`containsSyntheticMedia`) — no reach penalty, avoids strikes.
 - **Cadence**: consistency beats volume. See §5 about "every hour".
 
-## 4. Content strategy (default niche)
+## 4. Content strategy: niche decision
 
-Series: **"The Hidden Why"** — 40-second explainers of surprising science, engineering, history and economics
-behind everyday things ("Why airplane windows are round", "Why your phone battery lies at 1%").
-Swap in `config.toml → [channel]`. Good alternatives: *Data in 45s* (stat-driven), *History's tiny details*,
-*How it's made — physics*, *Money mechanics*.
+**Decision: keep "The Hidden Why", sharpened to *how the world really works*.** It's one recognizable format with
+six rotating **pillars**:
+
+1. Everyday engineering · 2. Money mechanics · 3. Maps & geography · 4. The body & living things ·
+5. History's hidden details · 6. Space & physics
+
+Why this niche wins for *long-run, fully automatic* production (scored against the alternatives):
+
+| Criterion | The Hidden Why | Geography/maps only | Finance only | History only | Pure "facts" |
+|---|---|---|---|---|---|
+| Endless topic supply at 24/day for years | ✅ six pillars | ⚠️ saturates | ⚠️ repeats | ✅ | ✅ |
+| Facts verifiable by web search (fact-check pass) | ✅ | ✅ | ⚠️ goes stale | ✅ | ⚠️ myth-prone |
+| Fits our visuals (diagram/map/stat/before-after) | ✅ all of them | maps only | charts only | timeline | weak |
+| Needs no faces or footage | ✅ | ✅ | ✅ | ⚠️ wants archival | ✅ |
+| Advertiser-friendly, Education category | ✅ | ✅ | ✅ (highest RPM) | ⚠️ wars/tragedy | ⚠️ |
+| Survives the "inauthentic/mass-produced" policy | ✅ researched + original analysis | ✅ | ⚠️ advice risk | ✅ | ❌ |
+| Evergreen (views keep coming months later) | ✅ | ✅ | ⚠️ | ✅ | ⚠️ |
+
+Single-pillar channels are easier to *start* but run dry or repeat at high cadence. The pillar mix keeps one
+promise to the viewer ("the hidden reason behind things you see every day") while giving the writer unlimited
+material. Money mechanics adds higher-RPM topics, and maps/geography plays to the map scene.
+
+**Self-optimizing mix:** each short records its pillar. `choose_pillar()` keeps 30% pure exploration and samples
+the other 70% weighted by each pillar's average % viewed (squared). Pillars with fewer than 3 measured shorts get
+an optimistic prior so they get tested. Over weeks the channel drifts toward what your audience retains,
+without you touching it.
 
 ## 5. Hard constraints you must know (honest list)
 
@@ -108,6 +146,9 @@ Swap in `config.toml → [channel]`. Good alternatives: *Data in 45s* (stat-driv
 - [x] **Step 7 — Publisher** (OAuth, upload, queue, daily cap, scheduled publishAt).
 - [x] **Step 8 — Scheduler** (systemd timer / cron).
 - [x] **Step 9 — Analytics feedback loop** (basic).
-- [ ] **Step 10 — Polish**: more scene types (map, diagram, code, before/after), A/B thumbnails/titles,
-      faster-whisper re-alignment for exact word timings, optional ComfyUI image backgrounds.
+- [x] **Step 10a — More scene types**: diagram (flow / cycle / hub), map (Natural Earth, fly-in zoom, highlighted
+      countries, pins, animated route), before/after (wipe reveal, optional photos).
+- [x] **Step 10b — Real photos without a GPU**: Openverse + NASA, Claude vision selection, auto credits.
+- [x] **Step 10c — Pillar rotation with performance weighting.**
+- [ ] **Step 10d — Polish**: A/B titles, faster-whisper re-alignment for exact word timings, Pexels as a 3rd source.
 - [ ] **Step 11 — Multi-channel / multi-language** (Kokoro speaks 8 languages).

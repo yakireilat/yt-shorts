@@ -7,7 +7,7 @@ writing, and **open-source** tools for everything else: Kokoro TTS, headless Chr
 Read **[ARCHITECTURE.md](ARCHITECTURE.md)** for the full design, YouTube algorithm best practices and limits you should know about.
 
 ```
-claude -p (research + script + fact-check) → Kokoro voice → procedural music/SFX
+claude -p (research + script + fact-check) → open-licensed photos (Claude-vetted) → Kokoro voice → procedural music/SFX
 → HTML/CSS motion graphics rendered frame-by-frame in Chromium → FFmpeg mix (-14 LUFS) → QA → YouTube API
 ```
 
@@ -53,7 +53,11 @@ Every run folder contains `final.mp4`, `thumb.png`, a still per scene, `spec.jso
 - **Look:** `render/template.html` (CSS themes: midnight, ember, mint, paper, ultraviolet) and `render/engine.js` (animations).
 - **Music:** drop tracks you have rights to (CC0, or YouTube Audio Library downloads) into `assets/music/`.
   If the folder is empty, a procedural bed is generated that's royalty-free by construction.
-- **Scene types:** hook, statement, stat (count-up), compare (bar race), list, timeline, outro (loop-back).
+- **Scene types:** hook, statement, stat (count-up), compare (bar race), list, timeline, **diagram** (flow / cycle / hub),
+  **map** (fly-in, highlighted countries, pins, route), **beforeafter** (wipe reveal), outro (loop-back).
+- **Photos:** `[images]` in config. Open-licensed photos come from Openverse and NASA, and Claude visually approves each one.
+  Credits are added to the description. Set `enabled = false` for pure motion graphics.
+- **Pillars:** `[channel] pillars`. The machine rotates through them and favors the ones your viewers watch longest.
 
 ## Requirements
 
