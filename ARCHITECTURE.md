@@ -98,7 +98,31 @@ Side benefit: Whisper's word timestamps **re-time the captions** to the real aud
 script: shorter headlines, words the voice can say, the reviewer's fixes. The short is re-rendered once. Both
 versions stay on disk, and only the better passing one stays in the publish queue.
 
-The final check is real viewers: the analytics loop feeds best/worst avg % viewed into the next scripts.
+The final check is real viewers (next section).
+
+## 2c. Getting better every day (no approval needed)
+
+Two feedback loops run automatically from `shorts run`:
+
+**1. From the reviewer, now** (`shorts/insights.py`). Every QA report is mined for recurring problems: hook
+frame weak, screen not in lockstep with the narration, generic icon, small text, empty frame and so on. The most
+frequent complaints of the last 8 shorts go into the next script prompt, so they're avoided up front.
+`python -m shorts insights` prints the table and the averages over time.
+
+**2. From real viewers, once published** (`shorts/analytics.py`, at most once a day):
+- **Retention curve per short:** YouTube Analytics `audienceWatchRatio` over `elapsedVideoTimeRatio` is mapped onto
+  that short's own scene timeline. That gives viewers kept after the hook, the rewatch ratio at the end, and the
+  scenes that lose the most viewers per second, with the exact narration said there.
+- **Reviewer calibration:** the rank correlation of each review sub-score (hook / readability / design / match) with
+  real average % viewed. It's appended to the reviewer prompt, so the reviewer weighs what actually predicts
+  retention on this channel.
+- **Lessons:** Claude turns the evidence into ≤12 concrete rules, each citing its data, in `data/lessons.md`.
+  Every new script prompt includes them. Rules the newer data contradicts are dropped.
+- **Pillar weighting:** pillars with higher average % viewed get picked more often, with 30% exploration.
+
+It needs at least 5 published shorts with ≥100 views each (`[learning] min_videos`) before rewriting lessons.
+Tested offline with a simulated channel (`python -m tests.test_analytics`): it recovers the planted
+hook→retention correlation and finds the planted drop-off scenes.
 
 ## 3. YouTube Shorts — algorithm best practice baked in
 
@@ -182,5 +206,6 @@ without you touching it.
 - [x] **Step 10c — Pillar rotation with performance weighting.**
 - [x] **Step 10d — Quality gate**: layout check, FFmpeg signal checks, Whisper narration check + caption re-timing,
       Claude viewer review, scoring, auto-fix, best-first publishing.
-- [ ] **Step 10e — Polish**: A/B titles, Pexels as a 3rd photo source, calibrate the review score against real retention.
+- [x] **Step 10e — Learning loops**: retention-curve scene analysis, reviewer calibration, daily lessons, QA insights.
+- [ ] **Step 10f — Next**: A/B titles, Pexels as a 3rd photo source.
 - [ ] **Step 11 — Multi-channel / multi-language** (Kokoro speaks 8 languages).

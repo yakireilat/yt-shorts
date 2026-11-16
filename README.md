@@ -33,6 +33,8 @@ and `qa.json`: the quality report with the score, layout/loudness/narration find
 | `python -m shorts publish` | upload the highest-scoring queued short that passed QA (respects the daily cap) |
 | `python -m shorts run` | produce + publish + refresh stats: **what the hourly timer calls** |
 | `python -m shorts stats` | pull views / avg-% viewed; best & worst feed the next prompt |
+| `python -m shorts learn` | analyse retention curves now: recalibrate the reviewer, rewrite `data/lessons.md` |
+| `python -m shorts insights` | recurring QA/review problems and score averages across all rendered shorts |
 | `python -m shorts auth` | one-time YouTube OAuth |
 | `python -m shorts loop --every 3600` | run forever without cron/systemd |
 
