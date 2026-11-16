@@ -64,6 +64,15 @@ and picks the best image or rejects all of them. On a reject it suggests a bette
 Credits go into the YouTube description automatically, as CC BY requires. Photos appear full-bleed in the top
 half with a slow Ken Burns zoom, fading into the theme background, so the designed look stays consistent.
 
+### Poster scenes: no empty text-only frames
+Hook, statement, outro and stat scenes without a photo become **posters**: a large pictogram that draws itself
+stroke by stroke inside a glowing accent disc with a slowly turning ring, above a headline that grows to fill the
+width. Icons are from **Lucide** (ISC license, ~2,300 line icons, bundled via npm). The writer gives 1–3 concrete
+keywords per scene ("snowflake", "dna"). If it doesn't, `shorts/icons.py` matches the headline's words exactly
+and falls back to a tasteful default. No icon repeats within one video, and stat scenes only get an icon when it
+means something. Measured on two real shorts: text-only frames went from 20–31% frame fill to above the 45%
+threshold, and the same railroad script scored 5.75 → 6.6 from the renderer change alone.
+
 ### Why not Higgsfield-style AI video?
 Open models (Wan 2.x, LTX-Video, HunyuanVideo) are good but need 12–24 GB VRAM and minutes per clip,
 and generic AI b-roll is exactly what the July-2025 YPP "inauthentic / mass-produced content" policy targets.
@@ -78,7 +87,7 @@ publisher always takes the **highest-scoring** queued short first. Layers, cheap
 | Layer | How | Catches | Cost |
 |---|---|---|---|
 | Script rules | `qa.script_rules` | length, word count, weak hook opener, missing sources, visual monotony | free |
-| **Layout check** | `layoutCheck()` runs in Chromium at each scene's settled frame and measures every element | text overflowing its box, content under the Shorts UI (top bar, title area, like/comment rail), overlapping cards/labels, captions covering content, text < 28 px | free, exact |
+| **Layout check** | `layoutCheck()` runs in Chromium at each scene's settled frame and measures every element | text overflowing its box, content under the Shorts UI (top bar, title area, like/comment rail), overlapping cards/labels, captions covering content or out of place, text < 32 px, **sparse frames** (content fills < 45% of the frame height) | free, exact |
 | **Signal** | FFmpeg `ebur128`, `blackdetect`, `freezedetect` (grain blurred out), `silencedetect` | loudness off −14 LUFS, clipping, black frames, frozen picture, dead air in narration | free |
 | **Narration** | faster-whisper `small.en` on CPU (~6 s) transcribes the voice; number-aware diff against the script | TTS mispronunciations, garbled numbers/acronyms, skipped words (WER + exact phrases) | free |
 | **Claude as viewer** | contact sheet of frame 0 + every scene → Claude scores hook ×2, readability, design, match | weak first frame, unreadable or cluttered frames, visuals that don't match the words, numbers that contradict the voice | 1 call |

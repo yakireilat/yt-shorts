@@ -5,7 +5,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import asr, db, ideate, images, music, qa, tts
+from . import asr, db, icons, ideate, images, music, qa, tts
 from .compose import mux
 from .config import ROOT, rel
 
@@ -25,6 +25,10 @@ def build_from_spec(cfg, spec: dict, run_id: str | None = None, fetch_images: bo
             images.resolve(cfg, spec, outdir)
         except Exception as e:  # photos are a bonus; never fail the run over them
             log(f"images: skipped ({e})")
+    try:
+        icons.resolve(spec)
+    except Exception as e:
+        log(f"icons: skipped ({e})")
     (outdir / "spec.json").write_text(json.dumps(spec, indent=1))
 
     log("voice: synthesizing narration")

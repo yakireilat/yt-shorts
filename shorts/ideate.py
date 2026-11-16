@@ -64,6 +64,7 @@ SPEC_SCHEMA = {
                                 "description": "map: English country names to highlight"},
                     "route": {"type": "boolean", "description": "map: draw an animated path through places in order"},
                     "image_query": {"type": "string", "description": "optional literal photo search, 2-4 words"},
+                    "icon": {"type": "string", "description": "hook/statement/outro/stat: 1-3 comma-separated concrete keywords for a line pictogram"},
                     "image_source": {"type": "string", "enum": ["openverse", "nasa"]},
                 },
             },
@@ -96,7 +97,7 @@ ABSOLUTE RULES
 - timeline: 2-5 items, "label" = year/date, "display" = what happened (<= 6 words).
 - stat: "value" numeric, plus prefix/suffix/decimals and a short "label".
 - diagram: explains a MECHANISM. "layout": flow (cause -> effect chain, 2-5 steps, top to bottom), cycle (3-5 steps
-  that loop), hub (items[0] is the center, 2-4 satellites). items: "label" <= 4 words, optional "display" <= 6 words.
+  that loop), hub (items[0] is the center, 2-4 satellites). items: "label" <= 4 words; "display" only if essential, <= 4 words.
 - map: when WHERE matters. "places": 1-4 with accurate decimal "lat"/"lon" and short "label"; optional "regions"
   (country names to highlight); "route": true to draw a path through places in order. Headline above the map.
 - beforeafter: exactly 2 items: items[0] = before/old/myth, items[1] = after/new/reality. "label" = short tag
@@ -104,6 +105,9 @@ ABSOLUTE RULES
 - On-screen numbers must match the spoken numbers exactly (same unit and rounding: say "fifty-two cents" -> show
   52 with suffix "¢", not 51.5%). Every number the narration stresses should appear on screen in that scene.
 - Avoid text-only frames in the middle of the video: "statement" is for the hook-like turns only.
+- Every hook/statement/outro/stat WITHOUT a photo gets a big animated pictogram: set "icon" to 1-3 concrete, drawable
+  nouns, best first (e.g. "snowflake, thermometer", "popcorn", "dna", "ship, anchor", "banknote"). Pick the object
+  that IS the idea of that scene, not a generic symbol.
 - Use 2-4 DIFFERENT visual scene types per short. Prefer diagram/map/beforeafter whenever they explain better than words.
 - PHOTOS: you may set "image_query" on up to {max_images} scenes (hook preferred, also statement/beforeafter) when a
   real photo of a CONCRETE, photographable subject helps: an object, animal, place, machine, artifact, spacecraft.

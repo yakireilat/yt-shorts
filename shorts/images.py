@@ -136,12 +136,13 @@ def resolve(cfg, spec: dict, outdir: Path):
     licenses, min_w = ic.get("licenses", "cc0,pdm,by"), int(ic.get("min_width", 1000))
     budget = int(ic.get("max_per_video", 3))
     targets = []  # (holder dict, query, source, context)
+    have = lambda h: bool(h.get("image")) and Path(h["image"]).exists()  # rebuilds reuse photos already fetched
     for sc in spec["scenes"]:
         if sc["type"] == "beforeafter":
             for it in (sc.get("items") or [])[:2]:
-                if it.get("image_query"):
+                if it.get("image_query") and not have(it):
                     targets.append((it, it["image_query"], sc.get("image_source", "openverse"), sc["narration"]))
-        elif sc.get("image_query") and sc["type"] in ("hook", "statement", "outro", "stat"):
+        elif sc.get("image_query") and not have(sc) and sc["type"] in ("hook", "statement", "outro", "stat"):
             targets.append((sc, sc["image_query"], sc.get("image_source", "openverse"), sc["narration"]))
     targets = targets[: budget + 1]
     if not targets:

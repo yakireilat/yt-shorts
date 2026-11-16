@@ -56,7 +56,8 @@ and `qa.json`: the quality report with the score, layout/loudness/narration find
 - **Music:** drop tracks you have rights to (CC0, or YouTube Audio Library downloads) into `assets/music/`.
   If the folder is empty, a procedural bed is generated that's royalty-free by construction.
 - **Scene types:** hook, statement, stat (count-up), compare (bar race), list, timeline, **diagram** (flow / cycle / hub),
-  **map** (fly-in, highlighted countries, pins, route), **beforeafter** (wipe reveal), outro (loop-back).
+  **map** (fly-in, highlighted countries, pins, route), **beforeafter** (stacked reveal), outro.
+  Text-only scenes become posters with a big self-drawing Lucide pictogram (`shorts/icons.py`).
 - **Photos:** `[images]` in config. Open-licensed photos come from Openverse and NASA, and Claude visually approves each one.
   Credits are added to the description. Set `enabled = false` for pure motion graphics.
 - **Pillars:** `[channel] pillars`. The machine rotates through them and favors the ones your viewers watch longest.

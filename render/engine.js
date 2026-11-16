@@ -130,7 +130,12 @@
     const places = (sc.places || []).filter((p) => isFinite(p.lat) && isFinite(p.lon));
     const pts = [];
     places.forEach((p) => { for (const [dx, dy] of [[-7, -5], [7, 5]]) pts.push([p.lon + dx, Math.max(-80, Math.min(84, p.lat + dy))]); });
-    const fc = { type: "FeatureCollection", features: [...regs, ...(pts.length ? [{ type: "Feature", geometry: { type: "MultiPoint", coordinates: pts } }] : [])] };
+    const mainland = (f) => {
+      if (f.geometry.type !== "MultiPolygon") return f;
+      const polys = f.geometry.coordinates.map((c) => ({ type: "Polygon", coordinates: c }));
+      return { type: "Feature", geometry: polys.reduce((a, b) => (d3.geoArea(b) > d3.geoArea(a) ? b : a)) };
+    };
+    const fc = { type: "FeatureCollection", features: [...regs.map(mainland), ...(pts.length ? [{ type: "Feature", geometry: { type: "MultiPoint", coordinates: pts } }] : [])] };
     let pT = pW;
     if (fc.features.length) {
       pT = d3.geoMercator().fitExtent([[110, 120], [W - 110, H - 110]], fc);
@@ -211,7 +216,8 @@
   function buildBA(el, sc, i) {
     const [a, b] = sc.items;
     const box = document.createElement("div"); box.className = "ba"; el.appendChild(box);
-    const side = (it, cls) => `<div class="side ${cls}${it.image ? " withimg" : ""}">${it.image ? `<img src="${esc(fileUrl(it.image))}">` : ""}<div class="tagl">${esc(it.label)}</div><div class="big">${esc(it.display || "")}</div></div>`;
+    const myth = /myth|wrong|false|fake|misconception|belief|assum/i.test(a.label || "");
+    const side = (it, cls) => `<div class="side ${cls}${it.image ? " withimg" : ""}${cls === "before" && myth ? " myth" : ""}">${it.image ? `<img src="${esc(fileUrl(it.image))}">` : ""}<div class="tagl">${esc(it.label)}</div><div class="big">${esc(it.display || "")}</div></div>`;
     box.innerHTML = side(a, "before") + side(b, "after") + `<div class="handle"></div>`;
     box.querySelectorAll(".big").forEach((e) => fit(e, 760, 200));
     // sweep when the narration reaches its second sentence
@@ -232,6 +238,45 @@
     const bi = B.before.querySelector("img"), ai = B.after.querySelector("img");
     if (bi) bi.style.transform = `scale(${lerp(1.1, 1.0, clamp(lt / dur))})`;
     if (ai) ai.style.transform = `scale(${lerp(1.12, 1.0, clamp(lt / dur))})`;
+  }
+
+
+  // ---------- poster: big drawn pictogram for text-only scenes ----------
+  function buildGlyph(nodes) {
+    const wrap = document.createElement("div"); wrap.className = "glyph";
+    const disc = document.createElement("div"); disc.className = "disc"; wrap.appendChild(disc);
+    const ring = document.createElementNS(NS, "svg"); ring.setAttribute("class", "ring"); ring.setAttribute("viewBox", "0 0 100 100");
+    ring.innerHTML = `<circle cx="50" cy="50" r="48" pathLength="100"/>`; wrap.appendChild(ring);
+    const svg = document.createElementNS(NS, "svg"); svg.setAttribute("class", "ico"); svg.setAttribute("viewBox", "0 0 24 24");
+    for (const [tag, attrs] of nodes) {
+      const e = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs)) if (k !== "key") e.setAttribute(k, v);
+      e.setAttribute("pathLength", "1");
+      svg.appendChild(e);
+    }
+    wrap.appendChild(svg);
+    return wrap;
+  }
+  function fitGrow(el, maxW, maxH, maxFs) {
+    let fs = parseFloat(getComputedStyle(el).fontSize);
+    const fits = () => el.scrollWidth <= maxW + 2 && el.offsetHeight <= maxH;
+    for (let k = 0; k < 30 && fits() && fs < maxFs; k++) { fs = Math.min(maxFs, fs * 1.05); el.style.fontSize = fs + "px"; }
+    for (let k = 0; k < 40 && !fits() && fs > 40; k++) { fs *= 0.95; el.style.fontSize = fs + "px"; }
+  }
+  function renderGlyph(el, lt, first) {
+    const g = el._glyph; if (!g) return;
+    const parts = [...g.querySelectorAll(".ico > *")];
+    const pd = first ? 1 : easeBack(prog(lt, 0, 0.5));
+    g.querySelector(".disc").style.transform = `scale(${lerp(0.6, 1, pd)})`;
+    g.querySelector(".disc").style.opacity = clamp(pd);
+    parts.forEach((e, k) => {
+      const p = first ? 1 : easeInOut(prog(lt, 0.1 + (k * 0.5) / Math.max(1, parts.length), 0.7));
+      e.style.strokeDasharray = "1 1"; e.style.strokeDashoffset = 1 - p;
+      if (e.getAttribute("fill") && e.getAttribute("fill") !== "none") e.style.fillOpacity = p;
+    });
+    g.querySelector(".ring").style.transform = `rotate(${lt * 18}deg)`;
+    g.querySelector(".ring circle").style.strokeDashoffset = first ? 0 : 100 * (1 - easeOut(prog(lt, 0.05, 0.9)));
+    g.querySelector(".ico").style.transform = `translateY(${Math.sin(lt * 1.7) * 7}px) rotate(${Math.sin(lt * 1.1) * 2}deg)`;
   }
 
   const fileUrl = (p) => (/^(https?|file|data):/.test(p) ? p : "file://" + encodeURI(p));
@@ -270,11 +315,23 @@
       default:
         h = `${kick}<div class="hl">${headlineHTML(sc.headline, sc.emphasis)}</div>`;
     }
-    el.innerHTML = h + `<div class="idx">${String(i + 1).padStart(2, "0")}</div>`;
+    el.innerHTML = h;
     $("#scenes").appendChild(el);
     if (sc.type === "diagram") el._dg = buildDiagram(el, sc);
     if (sc.type === "map") el._map = buildMap(el, sc);
     if (sc.type === "beforeafter") el._ba = buildBA(el, sc, i);
+    if (sc.type === "stat" && !sc.image && sc.icon_nodes) {
+      el.classList.add("statposter");
+      el._glyph = buildGlyph(sc.icon_nodes); el._glyph.classList.add("sm");
+      el.insertBefore(el._glyph, el.firstChild);
+    }
+    if (["hook", "statement", "outro"].includes(sc.type) && !sc.image && sc.icon_nodes) {
+      el.classList.add("poster");
+      el._glyph = buildGlyph(sc.icon_nodes);
+      el.insertBefore(el._glyph, el.firstChild);
+      const ph = $(".hl", el);
+      if (ph) fitGrow(ph, 860, sc.type === "hook" ? 430 : 400, sc.type === "hook" ? 158 : 140);
+    }
     if (sc.image && sc.type !== "beforeafter") {
       const ph = document.createElement("div"); ph.className = "photo";
       ph.innerHTML = `<img src="${esc(fileUrl(sc.image))}">`; $("#photos").appendChild(ph);
@@ -301,7 +358,11 @@
     }
   }
 
-  window.init = (job) => {
+  // load the real fonts BEFORE building: every auto-fit measures text, and a fallback font measures narrower
+  const FONTS = ['900 100px "Inter Tight"', '800 100px "Inter Tight"', '500 100px "Inter Tight"',
+    'italic 400 100px "Instrument Serif"', '700 40px "JetBrains Mono"'];
+  window.init = (job) => Promise.all(FONTS.map((f) => document.fonts.load(f))).then(() => initBuild(job));
+  function initBuild(job) {
     J = job;
     document.documentElement.dataset.theme = job.spec.theme || "midnight";
     $("#seriesName").textContent = job.series || "";
@@ -320,7 +381,7 @@
     chunks.forEach((c, k) => { c.s = c[0].s; c.e = k < chunks.length - 1 ? chunks[k + 1][0].s : job.timeline.duration; });
     const imgs = [...document.images].map((im) => im.decode().catch(() => null));
     return Promise.all([document.fonts.ready, ...imgs]).then(() => true);
-  };
+  }
 
   let lastChunk = -1;
   function renderCaptions(t) {
@@ -369,8 +430,6 @@
     el.style.transform = `translateY(${(1 - enter) * 70 - exit * 40 - drift * 0.6}px) scale(${lerp(1, 0.96, exit)})`;
     el.style.filter = enter < 1 || exit > 0 ? `blur(${(1 - enter) * 10 + exit * 8}px)` : "none";
 
-    const ix = $(".idx", el);
-    ix.style.transform = `translateY(${(1 - enter) * 120 - lt * 14}px)`;
     const k = $(".kicker", el);
     if (k) { const p = easeOut(prog(lt, 0, 0.35)); if (i === 0) { k.style.opacity = 1; k.style.transform = "none"; } else { k.style.opacity = p; k.style.transform = `translateX(${(1 - p) * -30}px)`; } }
 
@@ -378,10 +437,12 @@
       case "hook": {
         // visible on frame 0 for the swipe decision; tiny settle-in for energy
         const hl = $(".hl", el); hl.style.transform = `scale(${lerp(1.035, 1, easeOut(lt / 1.2))})`; hl.style.transformOrigin = "left center";
+        renderGlyph(el, lt, i === 0);
         break;
       }
       case "statement": case "outro":
-        animWords($(".hl", el), lt, 0.05);
+        animWords($(".hl", el), lt, el._glyph ? 0.25 : 0.05);
+        renderGlyph(el, lt, false);
         break;
       case "stat": {
         const p = expoOut(prog(lt, 0.1, Math.min(1.4, dur * 0.6)));
@@ -395,6 +456,7 @@
         const bar = $(".statbar", el);
         bar.style.display = /%/.test(sc.suffix || "") && pct >= 0.12 ? "" : "none"; // only when the bar means something
         $(".statbar i", el).style.width = `${p * pct * 100}%`;
+        renderGlyph(el, lt, false);
         break;
       }
       case "diagram": animWords($(".title2", el), lt, 0, 0.04); renderDiagram(el, sc, lt, dur); break;
@@ -483,6 +545,14 @@
       if (c.top < 600 || c.bottom > SAFE.bottom || c.left < SAFE.left - 1 || c.right > SAFE.right + 1) add("caption_position", "captions outside their zone");
       const cfs = parseFloat(getComputedStyle(document.querySelector("#cap .cw")).fontSize);
       if (cfs < 44) add("tiny_text", `captions only ${cfs.toFixed(0)}px`);
+    }
+    // how much of the content zone (y 330..1290) the scene actually uses
+    const rects = [...el.querySelectorAll("*")].filter((e) => !e.closest(".idx") && vis(e)).map((e) => e.getBoundingClientRect()).filter((r) => r.width > 4 && r.height > 4);
+    if (el._photo && effOpacity(el._photo) > 0.6) rects.push({ top: 0, bottom: 1000 });
+    if (rects.length) {
+      const top = Math.max(330, Math.min(...rects.map((r) => r.top))), bottom = Math.min(1290, Math.max(...rects.map((r) => r.bottom)));
+      const cov = Math.max(0, bottom - top) / 960;
+      if (cov < 0.45) add("sparse_frame", `content fills only ${(cov * 100).toFixed(0)}% of the frame height`);
     }
     const seen = new Set();
     return issues.filter((x) => { const k = x.kind + x.detail; if (seen.has(k)) return false; seen.add(k); return true; });
