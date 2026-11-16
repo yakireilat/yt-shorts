@@ -22,6 +22,12 @@ never always every day days year years time times part parts make makes made get
 hidden why answer truth secret move moves moving work works lot lots zero none nothing nobody everyone
 percent cents""".split())
 
+# brand / crypto / app logos: only used when asked for by exact name, never via fuzzy tag matching
+DENY_FUZZY = {"bitcoin", "github", "gitlab", "twitter", "facebook", "instagram", "youtube", "linkedin", "twitch",
+              "slack", "figma", "framer", "codepen", "codesandbox", "dribbble", "chrome", "chromium", "trello", "pocket",
+              "euro", "pound-sterling", "japanese-yen", "indian-rupee", "russian-ruble", "swiss-franc", "philippine-peso",
+              "turkish-lira", "saudi-riyal", "badge-euro", "badge-pound-sterling", "badge-japanese-yen"}
+
 # concept -> canonical icon (Lucide tag search alone picks odd ones, e.g. money -> euro)
 PREFER = {"money": "banknote", "cash": "banknote", "price": "tag", "prices": "tag", "cost": "receipt", "costs": "receipt",
           "profit": "trending-up", "loss": "trending-down", "market": "store", "business": "briefcase", "bank": "landmark",
@@ -35,7 +41,7 @@ PREFER = {"money": "banknote", "cash": "banknote", "price": "tag", "prices": "ta
           "tears": "droplets", "water": "droplets", "chemical": "flask-conical", "chemicals": "flask-conical",
           "enzyme": "flask-conical", "gas": "wind", "air": "wind", "plant": "leaf", "tree": "tree-pine",
           "tower": "building", "skyscraper": "building", "building": "building", "bridge": "bridge",
-          "engine": "cog", "machine": "cog", "train": "train-front", "railroad": "train-track", "clock": "clock"}
+          "engine": "cog", "coin": "coins", "nickel": "coins", "penny": "coins", "dime": "coins", "dollar": "dollar-sign", "machine": "cog", "train": "train-front", "railroad": "train-track", "clock": "clock"}
 
 
 @lru_cache(maxsize=1)
@@ -78,14 +84,14 @@ def find(query: str, strict: bool = False) -> str | None:
                 return s
     for w in words:
         for s in _stem(w):
-            if s in by_tag:
-                # prefer the shortest icon name (usually the canonical one)
-                return sorted(by_tag[s], key=len)[0]
+            ok = [n for n in by_tag.get(s, []) if n not in DENY_FUZZY]
+            if ok:
+                return sorted(ok, key=len)[0]  # the shortest name is usually the canonical icon
     if strict:
         return None
     for w in words:  # loose: icon names that start with the word ("plane" -> "plane-takeoff")
         for s in _stem(w):
-            cands = [n for n in nodes if n.startswith(s + "-")]
+            cands = [n for n in nodes if n.startswith(s + "-") and n not in DENY_FUZZY]
             if cands:
                 return sorted(cands, key=len)[0]
     return None

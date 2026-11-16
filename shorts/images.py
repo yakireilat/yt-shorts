@@ -270,6 +270,8 @@ side rods are wrong; for "a car differential", a random workshop model is wrong)
 is small are wrong. REJECT: diagrams, infographics, maps or charts with baked-in labels/text (they get cropped and
 clash with our own text), blurry or washed-out shots, and photos that suggest the wrong thing (an eclipse or dark
 silhouette for "the bright Sun"). Prefer a single clear subject filling the frame, vivid, high contrast.
+If the subject names a specific brand, product, person, place or object (e.g. "Coca-Cola bottle"), the photo must
+clearly be THAT one (a Pepsi bottle for "Coke" is wrong); a competitor's logo in the shot is wrong.
 If in doubt, choose -1: a missing photo is fine, a wrong photo is not.
 Also list "backups": other acceptable indices, best first (empty if none).
 When you choose -1, give "retry_query": a simpler, more literal 1-3 word search likely to find the subject
