@@ -296,6 +296,20 @@ def resolve(cfg, spec: dict, outdir: Path):
     ic = cfg.get("images", {})
     licenses, min_w = ic.get("licenses", "cc0,pdm,by"), int(ic.get("min_width", 1000))
     budget = int(ic.get("max_per_video", 3))
+    # a scene whose icon keywords match no real pictogram is better served by a photo (Claude vets it)
+    try:
+        from .icons import find as icon_find
+        budget_left = budget - sum(1 for sc in spec["scenes"] if sc.get("image_query"))
+        for sc in spec["scenes"]:
+            if budget_left <= 0:
+                break
+            kws = [k.strip() for k in (sc.get("icon") or "").split(",") if k.strip()]
+            if sc["type"] in ("statement", "stat", "outro") and kws and not sc.get("image_query") \
+                    and not any(icon_find(k, strict=True) for k in kws):
+                sc["image_query"] = kws[0]
+                budget_left -= 1
+    except Exception as e:
+        print("  images: icon-to-photo promotion skipped:", e)
     targets = []  # (holder dict, query, source, context)
     have = lambda h: bool(h.get("image")) and Path(h["image"]).exists()  # rebuilds reuse photos already fetched
     for sc in spec["scenes"]:

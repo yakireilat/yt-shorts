@@ -51,7 +51,10 @@
       const d = document.createElement("div"); d.className = `node ${cls}`;
       Object.assign(d.style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
       d.innerHTML = (badge ? `<div class="badge">${badge}</div>` : "") + `<div class="nl">${esc(it.label)}</div>` + (it.display ? `<div class="nd">${esc(it.display)}</div>` : "");
-      box.appendChild(d); fit(d.querySelector(".nl"), w - 50, h - (it.display ? 70 : 30)); nodes.push(d); return d;
+      box.appendChild(d);
+      const nl = d.querySelector(".nl"), room = h - (it.display ? 78 : 34);
+      fitGrow(nl, w - 60, room, h >= 180 ? 66 : 56);  // big boxes get big text, small ones shrink to fit
+      nodes.push(d); return d;
     };
     let H = 770;
     if (layout === "flow") {
@@ -302,6 +305,7 @@
         break;
       }
       case "list":
+        if ((sc.items || []).length <= 3) el.classList.add("few");
         h = `${kick}<div class="title2 hl">${headlineHTML(sc.headline, sc.emphasis)}</div>` + (sc.items || []).slice(0, 5).map((x, k) =>
           `<div class="li"><div class="n">${k + 1}</div><div class="t">${esc(x.label)}</div></div>`).join("");
         break;
