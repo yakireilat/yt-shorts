@@ -93,7 +93,8 @@ ABSOLUTE RULES
   takeaway and whose ending leads naturally back into the hook when the video loops. No "like and subscribe".
 - Headlines: max ~7 words, punchy, not a copy of the narration. "emphasis" = 1-2 words from that headline.
 - HOOK HEADLINE (frame 0, decides the swipe): <= 5 words, names the concrete subject AND the tension/mystery
-  ("This tower hides a giant ball", not "A skyscraper with a pendulum"). Same claim as the spoken hook.
+  ("This tower hides a giant ball", not "A skyscraper with a pendulum"). Use the SAME shocking key words as the
+  spoken hook (spoken "Wombats poop cubes" -> headline "Wombats poop cubes", not "Round guts make cubes").
   Give the hook an "image_query" for the real subject whenever it is photographable.
 - LOCKSTEP: everything on screen in a scene (headline, numbers, bars, list items, timeline events, labels) must
   be said or directly implied by THAT scene's narration. No extra bars or facts the voice never mentions, and no

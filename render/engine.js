@@ -332,6 +332,10 @@
       el.classList.add("statposter");
       el._glyph = buildGlyph(sc.icon_nodes); el._glyph.classList.add("sm");
       el.insertBefore(el._glyph, el.firstChild);
+      const num = $(".statnum", el);
+      num.innerHTML = fmtNum(sc.value ?? 0, sc.decimals || 0, sc.prefix, sc.suffix);
+      fitGrow(num, 860, 380, 380);                    // with an icon the number still dominates the frame
+      fitGrow($(".statlabel", el), 860, 200, 70);
     }
     if (["hook", "statement", "outro"].includes(sc.type) && !sc.image && sc.icon_nodes) {
       el.classList.add("poster");
