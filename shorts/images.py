@@ -267,7 +267,9 @@ muddy shots read badly on phones; text sits on top of the photo), works when cro
 central area, and has NO watermark, NO big text/logos, NO recognizable private person, nothing gory or misleading.
 It must show EXACTLY what the scene's words name, not a related or similar thing (for "a train axle", steam-locomotive
 side rods are wrong; for "a car differential", a random workshop model is wrong). Cluttered scenes where the subject
-is small are wrong.
+is small are wrong. REJECT: diagrams, infographics, maps or charts with baked-in labels/text (they get cropped and
+clash with our own text), blurry or washed-out shots, and photos that suggest the wrong thing (an eclipse or dark
+silhouette for "the bright Sun"). Prefer a single clear subject filling the frame, vivid, high contrast.
 If in doubt, choose -1: a missing photo is fine, a wrong photo is not.
 Also list "backups": other acceptable indices, best first (empty if none).
 When you choose -1, give "retry_query": a simpler, more literal 1-3 word search likely to find the subject
