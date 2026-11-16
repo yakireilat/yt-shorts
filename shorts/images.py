@@ -92,21 +92,85 @@ def search_wikimedia(q: str, licenses: str, min_w: int, n=10) -> list[dict]:
     return out
 
 
+_COOLDOWN: dict[str, float] = {}   # source -> unix time until which it is skipped (after HTTP 429)
+_OV_TOKEN: dict = {}
+
+
+def _cache_path(src: str, q: str):
+    import hashlib
+    from .config import rel
+    d = rel("data/img_cache")
+    d.mkdir(parents=True, exist_ok=True)
+    return d / (hashlib.sha1(f"{src}|{q.lower()}".encode()).hexdigest()[:20] + ".json")
+
+
+def _search(src: str, fn, q: str) -> list[dict]:
+    """Cached (7 days), rate-limit aware call of one source."""
+    import os
+    import time as _t
+    cp = _cache_path(src, q)
+    if cp.exists() and _t.time() - cp.stat().st_mtime < 7 * 86400:
+        return json.loads(cp.read_text())
+    if _COOLDOWN.get(src, 0) > _t.time():
+        return []
+    try:
+        res = fn(q)
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 429:
+            _COOLDOWN[src] = _t.time() + 15 * 60
+            print(f"  images: {src} rate-limited, skipping it for 15 min")
+            return []
+        raise
+    cp.write_text(json.dumps(res))
+    return res
+
+
+def _openverse_auth():
+    """Optional free Openverse API credentials (much higher rate limits): env OPENVERSE_CLIENT_ID/SECRET."""
+    import os
+    import time as _t
+    cid, sec = os.environ.get("OPENVERSE_CLIENT_ID"), os.environ.get("OPENVERSE_CLIENT_SECRET")
+    if not (cid and sec):
+        return
+    if _OV_TOKEN.get("exp", 0) > _t.time() + 60:
+        return
+    r = S.post("https://api.openverse.org/v1/auth_tokens/token/",
+               data={"grant_type": "client_credentials", "client_id": cid, "client_secret": sec}, timeout=20)
+    r.raise_for_status()
+    tok = r.json()
+    _OV_TOKEN.update(exp=_t.time() + int(tok.get("expires_in", 3600)))
+    S.headers["Authorization"] = f"Bearer {tok['access_token']}"
+
+
 def gather(q: str, src: str, licenses: str, min_w: int, n: int = 9) -> list[dict]:
-    """Candidates from every source with simplified-query fallbacks; max 2 per creator, no duplicates."""
-    words = q.split()
+    """Candidates from every source with simplified-query fallbacks; max 2 per creator, no duplicates.
+    Stops querying as soon as there are enough distinct candidates (keeps API usage low)."""
+    try:
+        _openverse_auth()
+    except Exception as e:
+        print("  images: openverse auth failed:", str(e)[:80])
+    filler = {"close", "up", "closeup", "close-up", "view", "aerial", "photo", "detail", "macro", "shot", "image",
+              "picture", "of", "the", "a", "an", "and", "on", "in", "with"}
+    words = [w for w in q.split() if w.lower() not in filler] or q.split()
     variants = [q] + ([" ".join(words[:2]), " ".join(words[-2:])] if len(words) > 2 else []) + \
-        ([words[-1]] if len(words) == 2 else [])
-    pools = []
+        ([" ".join(words)] if len(words) == 2 else []) + ([words[-1]] if len(words) == 2 else [])
+    pools, out = [], []
     for v in dict.fromkeys(variants):
-        for fn in ([lambda x: search_nasa(x)] if src == "nasa" or SPACEY.search(v) else []) + \
-                [lambda x: search_openverse(x, licenses, min_w, 12), lambda x: search_wikimedia(x, licenses, min_w)]:
+        sources = ([("nasa", lambda x: search_nasa(x))] if src == "nasa" or SPACEY.search(v) else []) + \
+            [("openverse", lambda x: search_openverse(x, licenses, min_w, 12)),
+             ("wikimedia", lambda x: search_wikimedia(x, licenses, min_w))]
+        for name, fn in sources:
             try:
-                pools.append(fn(v))
-            except Exception as e:  # one source down (rate limit, outage) must not stop the others
-                print(f"  images: a source failed for '{v}': {str(e)[:80]}")
-        if sum(map(len, pools)) >= 3 * n:
+                pools.append(_search(name, fn, v))
+            except Exception as e:  # one source down must not stop the others
+                print(f"  images: {name} failed for '{v}': {str(e)[:80]}")
+        out = _merge(pools, n)
+        if len(out) >= n:
             break
+    return out
+
+
+def _merge(pools, n):
     out, seen, per_creator = [], set(), {}
     for i in range(max((len(p) for p in pools), default=0)):  # round-robin across sources for variety
         for p in pools:

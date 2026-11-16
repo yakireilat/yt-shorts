@@ -9,5 +9,8 @@ WorkingDirectory=%h/yt-shorts
 ExecStart=%h/yt-shorts/.venv/bin/python -m shorts run
 # claude CLI + node must be on PATH for the user service
 Environment=PATH=%h/.local/bin:%h/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+# optional, for higher photo-search limits (free): https://api.openverse.org/v1/#tag/auth
+#Environment=OPENVERSE_CLIENT_ID=...
+#Environment=OPENVERSE_CLIENT_SECRET=...
 TimeoutStartSec=1800
 Nice=10

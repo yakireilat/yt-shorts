@@ -60,7 +60,10 @@ and `qa.json`: the quality report with the score, layout/loudness/narration find
 - **Scene types:** hook, statement, stat (count-up), compare (bar race), list, timeline, **diagram** (flow / cycle / hub),
   **map** (fly-in, highlighted countries, pins, route), **beforeafter** (stacked reveal), outro.
   Text-only scenes become posters with a big self-drawing Lucide pictogram (`shorts/icons.py`).
-- **Photos:** `[images]` in config. Open-licensed photos come from Openverse and NASA, and Claude visually approves each one.
+- **Photos:** `[images]` in config. Open-licensed photos come from Openverse, Wikimedia Commons and NASA, and Claude visually approves each one.
+  Searches are cached for 7 days and back off on rate limits. For hourly production, register a free Openverse
+  API app (`curl -X POST https://api.openverse.org/v1/auth_tokens/register/ -d name=... -d description=... -d email=...`)
+  and export `OPENVERSE_CLIENT_ID` / `OPENVERSE_CLIENT_SECRET` (e.g. in the systemd unit) for much higher limits.
   Credits are added to the description. Set `enabled = false` for pure motion graphics.
 - **Pillars:** `[channel] pillars`. The machine rotates through them and favors the ones your viewers watch longest.
 
