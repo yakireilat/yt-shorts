@@ -96,6 +96,8 @@ PICK_SCHEMA = {
     "properties": {"picks": {"type": "array", "items": {
         "type": "object", "required": ["slot", "index"],
         "properties": {"slot": {"type": "integer"}, "index": {"type": "integer"}, "why": {"type": "string"},
+                       "backups": {"type": "array", "items": {"type": "integer"},
+                                   "description": "other acceptable indices, best first (used if the pick fails to download)"},
                        "retry_query": {"type": "string", "description": "if index is -1: a better 1-3 word search"}}}}},
 }
 
@@ -107,6 +109,7 @@ image index, or -1 if none is good enough.
 A good pick: clearly and literally shows the subject, is sharp and well lit, works when cropped to the
 central area, and has NO watermark, NO big text/logos, NO recognizable private person, nothing gory or misleading.
 If in doubt, choose -1: a missing photo is fine, a wrong photo is not.
+Also list "backups": other acceptable indices, best first (empty if none).
 When you choose -1, give "retry_query": a simpler, more literal 1-3 word search likely to find the subject
 (e.g. "onion" instead of "cut onion halves").
 
@@ -127,7 +130,8 @@ def _claude_pick(cfg, slots: list[dict], sheets_dir: Path) -> dict[int, int]:
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=c.get("timeout_sec", 600), cwd=sheets_dir)
     out = json.loads(r.stdout)
     data = out.get("structured_output") or {}
-    return {p["slot"]: (p["index"], p.get("retry_query") or "") for p in data.get("picks", [])}
+    return {p["slot"]: ([p["index"], *p.get("backups", [])] if p["index"] >= 0 else [-1], p.get("retry_query") or "")
+            for p in data.get("picks", [])}
 
 
 def resolve(cfg, spec: dict, outdir: Path):
@@ -174,23 +178,29 @@ def resolve(cfg, spec: dict, outdir: Path):
             slots.append({"slot": k, "query": q, "context": ctx, "sheet": str(sheet)})
         if not slots:
             break
-        got = _claude_pick(cfg, slots, imgdir) if ic.get("vision_check", True) else {s["slot"]: (0, "") for s in slots}
+        got = _claude_pick(cfg, slots, imgdir) if ic.get("vision_check", True) else {s["slot"]: ([0, 1, 2], "") for s in slots}
         queries = {}
-        for k, (idx, retry) in got.items():
+        for k, (ranked, retry) in got.items():
+            idx = ranked[0]
             if idx >= 0:
-                picks[k] = (idx, dict(enumerate(cands.get(k, []))))
+                picks[k] = (ranked, dict(enumerate(cands.get(k, []))))
             elif retry and rnd == 0 and retry.lower() != targets[k][1].lower():
                 queries[k] = retry
         if not queries:
             break
     credits, used = [], 0
-    for k, (idx, pool) in sorted(picks.items()):
-        if idx not in pool or used >= budget:
-            continue
-        cand = pool[idx]
-        im = _load(cand["url"])
-        if im is None or im.width < 700:
-            print(f"  images: slot {k} full-size download failed/too small")
+    for k, (ranked, pool) in sorted(picks.items()):
+        if used >= budget:
+            break
+        cand = im = None
+        for idx in ranked:  # the pick first, then Claude's approved backups
+            if idx in pool:
+                im = _load(pool[idx]["url"])
+                if im is not None and im.width >= 700:
+                    cand = pool[idx]
+                    break
+                print(f"  images: slot {k} candidate {idx} download failed/too small, trying backup")
+        if cand is None:
             continue
         p = imgdir / f"photo{k}.jpg"
         im.save(p, quality=90)

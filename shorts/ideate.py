@@ -107,7 +107,9 @@ ABSOLUTE RULES
 - Avoid text-only frames in the middle of the video: "statement" is for the hook-like turns only.
 - Every hook/statement/outro/stat WITHOUT a photo gets a big animated pictogram: set "icon" to 1-3 concrete, drawable
   nouns, best first (e.g. "snowflake, thermometer", "popcorn", "dna", "ship, anchor", "banknote"). Pick the object
-  that IS the idea of that scene, not a generic symbol.
+  that IS the idea of that scene, not a generic symbol. Give "icon" keywords even when you also set
+  "image_query" (they are the backup if no good photo is found).
+- Put photos where the subject is FIRST introduced (ideally the hook shows the real subject), not on abstract lines.
 - Use 2-4 DIFFERENT visual scene types per short. Prefer diagram/map/beforeafter whenever they explain better than words.
 - PHOTOS: you may set "image_query" on up to {max_images} scenes (hook preferred, also statement/beforeafter) when a
   real photo of a CONCRETE, photographable subject helps: an object, animal, place, machine, artifact, spacecraft.

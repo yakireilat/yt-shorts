@@ -28,12 +28,14 @@ PREFER = {"money": "banknote", "cash": "banknote", "price": "tag", "prices": "ta
           "time": "clock", "energy": "zap", "power": "zap", "science": "flask-conical", "history": "landmark",
           "idea": "lightbulb", "space": "orbit", "planet": "earth", "world": "earth", "body": "person-standing",
           "study": "book-open", "law": "scale", "weather": "cloud-sun", "heat": "thermometer-sun", "cold": "snowflake",
-          "ocean": "waves", "sea": "waves", "city": "building-2", "road": "route", "trade": "ship", "war": "swords",
+          "ocean": "waves-horizontal", "sea": "waves-horizontal", "city": "building", "road": "route", "trade": "ship", "war": "swords",
           "food": "utensils", "health": "heart-pulse", "disease": "biohazard", "evolution": "dna", "gene": "dna",
           "nerve": "activity", "data": "chart-column", "growth": "sprout", "speed": "gauge", "light": "sun", "sound": "audio-lines",
           "winter": "snowflake", "summer": "sun", "rain": "cloud-rain", "storm": "cloud-lightning", "fire": "flame",
           "tears": "droplets", "water": "droplets", "chemical": "flask-conical", "chemicals": "flask-conical",
-          "enzyme": "flask-conical", "gas": "wind", "air": "wind", "plant": "leaf", "tree": "tree-pine"}
+          "enzyme": "flask-conical", "gas": "wind", "air": "wind", "plant": "leaf", "tree": "tree-pine",
+          "tower": "building", "skyscraper": "building", "building": "building", "bridge": "bridge",
+          "engine": "cog", "machine": "cog", "train": "train-front", "railroad": "train-track", "clock": "clock"}
 
 
 @lru_cache(maxsize=1)
@@ -90,27 +92,36 @@ def find(query: str, strict: bool = False) -> str | None:
 
 
 def resolve(spec: dict) -> None:
-    """Attach icon_nodes to text-only scenes (no photo). Explicit keywords win; derived matches next; a generic
-    default only for hook/statement/outro; never the same icon twice in one video."""
+    """Attach icon_nodes to text-only scenes (no photo).
+    Order: writer's icon keywords -> words of a photo search that failed -> headline words -> a default
+    (statement/outro only; the hook never gets a generic symbol). Defaults never repeat; a matched icon may
+    repeat if it isn't in the previous scene."""
     nodes, _, _ = _db()
     used: set[str] = set()
+    prev = None
     for sc in spec["scenes"]:
         sc.pop("icon_nodes", None)
         sc.pop("icon_name", None)
         if sc["type"] not in TEXT_SCENES or sc.get("image"):
+            prev = None
             continue
-        cands = []
-        if sc.get("icon"):
-            cands += [find(kw) for kw in re.split(r"[,;]", sc["icon"])]
+        matched = []
+        if sc.get("icon"):  # the writer's own keywords: full search incl. Lucide tags
+            matched += [find(kw) for kw in re.split(r"[,;]", sc["icon"])]
+        if sc.get("image_query"):  # words of a photo search: exact names only (tags give "tower" -> pc-case)
+            for w in sc["image_query"].lower().split():
+                if len(w) >= 4 and w not in STOP:
+                    matched += [PREFER.get(w)] + [x for x in _stem(w) if x in nodes]
         words = [re.sub(r"[^\w\-]", "", w.lower()) for w in [*sc.get("emphasis", []), *(sc.get("headline") or "").split()]]
         words = [w for w in words if len(w) >= 4 and w not in STOP]
-        cands += [PREFER.get(w) for w in words] + [x for w in words for x in _stem(w) if x in nodes]
-        if sc["type"] != "stat":
-            if (sc.get("headline") or "").strip().endswith("?"):
-                cands.append("circle-question-mark")
-            cands += {"hook": ["zap", "sparkles"], "statement": ["lightbulb", "search", "eye", "sparkles"],
-                      "outro": ["repeat", "infinity"]}[sc["type"]]
-        name = next((c for c in cands if c and c in nodes and c not in used), None)
+        matched += [PREFER.get(w) for w in words] + [x for w in words for x in _stem(w) if x in nodes]
+        matched = [m for m in matched if m and m in nodes]
+        name = next((m for m in matched if m not in used), None) or next((m for m in matched if m != prev), None)
+        if not name and sc["type"] in ("statement", "outro"):
+            defaults = (["circle-question-mark"] if (sc.get("headline") or "").strip().endswith("?") else []) + \
+                {"statement": ["lightbulb", "search", "eye", "sparkles"], "outro": ["repeat", "infinity"]}[sc["type"]]
+            name = next((d for d in defaults if d in nodes and d not in used), None)
+        prev = name
         if name:
             used.add(name)
             sc["icon_name"] = name
