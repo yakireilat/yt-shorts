@@ -38,17 +38,41 @@ and `qa.json`: the quality report with the score, layout/loudness/narration find
 | `python -m shorts auth` | one-time YouTube OAuth |
 | `python -m shorts loop --every 3600` | run forever without cron/systemd |
 
-## Connect YouTube (one-time, free)
+## Connect YouTube (one-time, free, ~10 minutes)
 
-1. In <https://console.cloud.google.com>, create a project and enable **YouTube Data API v3** and **YouTube Analytics API**.
-2. Under **OAuth consent screen**, choose External and add yourself as a test user.
-   Under **Credentials**, create an *OAuth client ID* of type **Desktop app**, download the JSON and save it as `secrets/client_secret.json`.
-3. Run `.venv/bin/python -m shorts auth`. A browser opens; pick the channel.
-4. In `config.toml`, set `publish.enabled = true`.
-5. **Important:** until your API project passes Google's free *YouTube API Services audit*, API uploads are **locked to private**.
-   Apply for the audit and quota extension early using the "YouTube API Services – Audit and Quota Extension Form".
-   Default quota is about 6 uploads a day.
-6. Schedule it: [deploy/README.md](deploy/README.md).
+Use **the Google account (Gmail) that owns or manages the YouTube channel**. The Cloud project could live under
+another account, but using the same one avoids permission mix-ups.
+
+**A. Google Cloud project** (<https://console.cloud.google.com>, signed in with that Gmail)
+1. Create a project, e.g. `shorts-machine`.
+2. *APIs & Services → Library*: enable **YouTube Data API v3** and **YouTube Analytics API**.
+3. *Google Auth Platform* (formerly "OAuth consent screen"): app name e.g. "Shorts Machine", user type **External**,
+   your Gmail as support and developer contact.
+   - *Audience*: add your Gmail as a **test user**.
+   - Then click **Publish app** (status **In production**). An unverified app is fine for your own channel; you'll
+     click "Advanced → continue" once at sign-in. **Don't skip this:** in *Testing* status Google expires the
+     authorization after 7 days and uploads stop silently.
+4. *Clients → Create client → Desktop app*. Download the JSON and save it as `secrets/client_secret.json`.
+
+**B. Authorize, on the machine that will run hourly**
+```bash
+.venv/bin/python -m shorts auth      # browser opens: pick the Gmail, then the CHANNEL (brand account) to post to
+.venv/bin/python -m shorts doctor    # shows the connected channel name + anything still missing
+```
+Set `[publish] enabled = true` in `config.toml`, then `bash deploy/install.sh` (hourly timer). Done.
+
+**C. YouTube API audit (so uploads aren't forced private)**
+
+Until the audit passes, YouTube locks every API upload from a new project to **private**. The machine still works;
+you'd flip videos to public in YouTube Studio by hand. Apply once, free, at the
+[YouTube API Services – Audit and Quota Extension Form](https://support.google.com/youtube/contact/yt_api_form):
+- **Organization / use case:** "Individual creator. Internal tool that uploads original, researched educational
+  Shorts to my own channel and reads my own channel's analytics. No other users, no data shared or sold."
+- **Project number:** from the Cloud console dashboard. **API client:** the Desktop OAuth client above.
+- **Quota requested:** e.g. 24 uploads/day plus analytics reads (check your current quota under *APIs & Services →
+  YouTube Data API v3 → Quotas*).
+- They may ask for a **privacy policy URL** and screenshots or a short video of the tool. A simple page stating it
+  only accesses your own channel is enough. Reviews take days to weeks; reply quickly to their emails.
 
 ## Customize
 

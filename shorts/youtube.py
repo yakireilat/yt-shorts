@@ -33,8 +33,22 @@ def _creds(cfg, interactive=False):
 
 
 def auth(cfg):
+    cs = rel(cfg.publish.client_secret)
+    if not cs.exists():
+        raise SystemExit(f"Missing {cs}. Download the OAuth client JSON (Desktop app) from Google Cloud Console "
+                         f"> APIs & Services > Credentials, and save it there. See README 'Connect YouTube'.")
     _creds(cfg, interactive=True)
-    print("YouTube auth OK ->", rel(cfg.publish.token))
+    ch = channel(cfg)
+    print(f"YouTube auth OK -> {rel(cfg.publish.token)}")
+    print(f"Connected channel: {ch['title']}  (id {ch['id']}, {ch['subs']} subscribers)")
+    print("If that is not the channel you want, delete the token file and run auth again, choosing the right channel.")
+
+
+def channel(cfg) -> dict:
+    r = _yt(cfg).channels().list(part="snippet,statistics", mine=True).execute()
+    it = (r.get("items") or [{}])[0]
+    return {"id": it.get("id", "?"), "title": it.get("snippet", {}).get("title", "?"),
+            "subs": it.get("statistics", {}).get("subscriberCount", "?")}
 
 
 def _yt(cfg, api="youtube", ver="v3"):

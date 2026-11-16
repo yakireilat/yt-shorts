@@ -6,6 +6,7 @@
   qa RUN_DIR       re-run the quality gate on an already rendered short (out/<run-id>)
   learn            analyse YouTube retention now: recalibrate the reviewer + rewrite data/lessons.md
   insights         summarise recurring QA/review problems across all rendered shorts
+  doctor           check the whole setup (tools, Claude login, YouTube channel, timer) and print fixes
   publish          upload the oldest queued short (respects daily cap)
   stats            refresh YouTube stats (feeds the next ideation prompt)
   auth             one-time YouTube OAuth in your browser
@@ -34,7 +35,7 @@ def _locked(fn):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="shorts", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["run", "produce", "build", "publish", "stats", "auth", "loop", "qa", "learn", "insights"])
+    ap.add_argument("cmd", choices=["run", "produce", "build", "publish", "stats", "auth", "loop", "qa", "learn", "insights", "doctor"])
     ap.add_argument("spec", nargs="?")
     ap.add_argument("--config")
     ap.add_argument("--seed")
@@ -61,6 +62,9 @@ def main(argv=None):
         for n in notes:
             print("  -", n)
         return 0 if ok else 1
+    if a.cmd == "doctor":
+        from . import doctor
+        return doctor.run(cfg)
     if a.cmd == "learn":
         from . import analytics
         analytics.learn(cfg, force=True)
