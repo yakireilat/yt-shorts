@@ -118,9 +118,13 @@ def publish_next(cfg):
     if db.uploads_last_24h(con) >= int(cfg.publish.get("max_uploads_per_day", 6)):
         log("publish: daily cap reached; leaving in queue")
         return None
-    # best first: highest QA score among fresh shorts, newest wins ties
-    row = con.execute("select * from videos where status='queued' and qa_ok=1 and created_at > ? "
-                      "order by coalesce(score, 0) desc, created_at desc limit 1", (time.time() - 7 * 86400,)).fetchone()
+    # best first: highest QA score among fresh, scored shorts above the bar; never a topic that's already live
+    min_score = float(cfg.publish.get("min_score", 6.5))
+    row = con.execute(
+        "select * from videos v where status='queued' and qa_ok=1 and score is not null and score >= ? and created_at > ? "
+        "and lower(coalesce(topic,'')) not in (select lower(coalesce(topic,'')) from videos where status='uploaded') "
+        "and lower(coalesce(title,'')) not in (select lower(coalesce(title,'')) from videos where status='uploaded') "
+        "order by score desc, created_at desc limit 1", (min_score, time.time() - 7 * 86400)).fetchone()
     if not row:
         log("publish: queue empty")
         return None
@@ -129,6 +133,8 @@ def publish_next(cfg):
     vid = youtube.upload(cfg, spec, Path(row["path"]))
     con.execute("update videos set status='uploaded', youtube_id=?, uploaded_at=? where run_id=?",
                 (vid, time.time(), row["run_id"]))
+    con.execute("update videos set status='superseded' where status='queued' and (lower(topic)=lower(?) or lower(title)=lower(?))",
+                (row["topic"] or "", row["title"] or ""))
     con.commit()
     log(f"publish: https://youtube.com/shorts/{vid}")
     return vid

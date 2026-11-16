@@ -71,6 +71,7 @@ target_lufs = -14
 [publish]
 enabled = false                  # set true after `python -m shorts auth`
 privacy = "public"               # public | unlisted | private
+min_score = 6.5                  # only shorts with a QA score at or above this are ever published
 max_uploads_per_day = 6          # default API quota allows ~6/day; raise after quota extension
 category_id = "27"               # Education
 synthetic_media = true
