@@ -284,7 +284,7 @@
   function build(sc, i) {
     const el = document.createElement("div");
     el.className = `scene ${sc.type}`;
-    const kick = sc.kicker ? `<div class="kicker">${esc(sc.kicker)}</div>` : "";
+    const kick = sc.kicker && sc.type !== "hook" ? `<div class="kicker">${esc(sc.kicker)}</div>` : "";
     let h = "";
     switch (sc.type) {
       case "stat":
@@ -547,12 +547,12 @@
       const cfs = parseFloat(getComputedStyle(document.querySelector("#cap .cw")).fontSize);
       if (cfs < 44) add("tiny_text", `captions only ${cfs.toFixed(0)}px`);
     }
-    // how much of the content zone (y 330..1290) the scene actually uses
+    // how much of the content zone (y 330..1370) the scene actually uses
     const rects = [...el.querySelectorAll("*")].filter((e) => !e.closest(".idx") && vis(e)).map((e) => e.getBoundingClientRect()).filter((r) => r.width > 4 && r.height > 4);
     if (el._photo && effOpacity(el._photo) > 0.6) rects.push({ top: 0, bottom: 1000 });
     if (rects.length) {
-      const top = Math.max(330, Math.min(...rects.map((r) => r.top))), bottom = Math.min(1290, Math.max(...rects.map((r) => r.bottom)));
-      const cov = Math.max(0, bottom - top) / 960;
+      const top = Math.max(330, Math.min(...rects.map((r) => r.top))), bottom = Math.min(1370, Math.max(...rects.map((r) => r.bottom)));
+      const cov = Math.max(0, bottom - top) / 1040;
       if (cov < 0.45) add("sparse_frame", `content fills only ${(cov * 100).toFixed(0)}% of the frame height`);
     }
     const seen = new Set();

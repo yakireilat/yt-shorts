@@ -92,6 +92,12 @@ ABSOLUTE RULES
 - Last scene is type "outro": one COMPLETE sentence (no trailing "..." or dangling "because") that lands the
   takeaway and whose ending leads naturally back into the hook when the video loops. No "like and subscribe".
 - Headlines: max ~7 words, punchy, not a copy of the narration. "emphasis" = 1-2 words from that headline.
+- HOOK HEADLINE (frame 0, decides the swipe): <= 5 words, names the concrete subject AND the tension/mystery
+  ("This tower hides a giant ball", not "A skyscraper with a pendulum"). Same claim as the spoken hook.
+  Give the hook an "image_query" for the real subject whenever it is photographable.
+- LOCKSTEP: everything on screen in a scene (headline, numbers, bars, list items, timeline events, labels) must
+  be said or directly implied by THAT scene's narration. No extra bars or facts the voice never mentions, and no
+  timeline/list item that gives away a later scene's reveal.
 - compare: 2-4 items with numeric "value" (same unit) and "display" (formatted, e.g. "1,200 km/h").
 - list: 2-4 items with short "label" (<= 5 words).
 - timeline: 2-5 items, "label" = year/date, "display" = what happened (<= 6 words).
@@ -113,7 +119,8 @@ ABSOLUTE RULES
 - Use 2-4 DIFFERENT visual scene types per short. Prefer diagram/map/beforeafter whenever they explain better than words.
 - PHOTOS: you may set "image_query" on up to {max_images} scenes (hook preferred, also statement/beforeafter) when a
   real photo of a CONCRETE, photographable subject helps: an object, animal, place, machine, artifact, spacecraft.
-  2-4 literal words ("red onion halves", "Hoover Dam aerial"). Never abstract ideas, never private people, never
+  2-4 literal words ("red onion halves", "Hoover Dam aerial"). Photos beat icons for concrete subjects:
+  use them on stat scenes too when the number is about a photographable thing. Never abstract ideas, never private people, never
   brands as the subject. Use "image_source": "nasa" only for space/astronomy subjects.
 - Spell numbers in narration the way they should be SPOKEN (e.g. "two hundred thousand").
 - Pick a theme that matches the mood: midnight (tech/space), ember (history/energy), mint (nature/biology),
@@ -131,6 +138,7 @@ AVOID these already-made topics (and close variants):
 {avoid}
 
 {perf}
+{lessons}
 {seed}
 Produce ONE short as the structured output.
 """
@@ -145,7 +153,13 @@ Here is a scene spec as JSON:
    If the core premise is false or a myth, replace it with a true, equally surprising angle on the same topic.
 2. Keep all structure rules: hook first (<= 12 words), outro last that loops back into the hook,
    total narration 85-125 words, headlines <= ~7 words, numbers in narration spelled as spoken.
-3. Tighten wording for retention. Keep the same JSON shape.
+3. LOCKSTEP AUDIT, scene by scene: remove any on-screen item (bar, list/timeline entry, label, number) the
+   narration of that scene does not say; make every stressed spoken number appear on screen with the same
+   rounding; make sure no scene shows a later scene's payoff.
+4. HOOK: rewrite the hook headline as the strongest of 3 alternatives you consider (<= 5 words, concrete subject
+   + tension, same claim as the spoken hook). Make sure the hook has an "image_query" for the real subject when
+   it is photographable, and that photos sit on the scene where their subject is first named.
+5. Tighten wording for retention. Keep the same JSON shape.
 Return the corrected spec as the structured output.
 """ + GUIDE
 
@@ -195,14 +209,17 @@ def make_spec(cfg, avoid: list[str], perf: str = "", seed: str = "", pillar: str
     ch = cfg.channel
     web = bool(cfg.claude.get("research"))
     fmt = dict(series=ch["series_name"], niche=ch["niche"], audience=ch["audience"], tone=ch["tone"],
-               max_images=int(cfg.get("images", {}).get("max_per_video", 3)))
+               max_images=int(cfg.get("images", {}).get("max_per_video", 5)))
     research = (
         "First use web search to find a fresh, surprising, well-documented idea in the niche and confirm its key "
         "facts with credible sources (encyclopedias, universities, agencies, reputable press)."
         if web else "Use only facts you are highly confident are true and well documented."
     )
     seed_txt = f"Topic seed for variety (optional to follow): {seed}\n" if seed else ""
-    prompt = IDEATE.format(**fmt, research=research, pillar=pillar, avoid="\n".join(f"- {a}" for a in avoid) or "- (none yet)",
+    from .analytics import lessons_for_prompt
+    from .insights import recent_problems_for_prompt
+    prompt = IDEATE.format(**fmt, research=research, pillar=pillar,
+                           lessons=lessons_for_prompt() + recent_problems_for_prompt(), avoid="\n".join(f"- {a}" for a in avoid) or "- (none yet)",
                            perf=perf, seed=seed_txt)
     spec = claude_json(cfg, prompt, SPEC_SCHEMA, web)
     if cfg.claude.get("fact_check"):
@@ -235,7 +252,7 @@ structured output.
 def revise(cfg, spec: dict, report: dict) -> dict:
     ch = cfg.channel
     fmt = dict(series=ch["series_name"], niche=ch["niche"], audience=ch["audience"], tone=ch["tone"],
-               max_images=int(cfg.get("images", {}).get("max_per_video", 3)))
+               max_images=int(cfg.get("images", {}).get("max_per_video", 5)))
     problems = {k: report.get(k) for k in ("fails", "warns", "layout", "review")}
     if report.get("narration"):
         problems["narration_mismatches"] = report["narration"].get("mismatches")

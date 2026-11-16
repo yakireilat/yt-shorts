@@ -72,6 +72,16 @@ def _load(url_or_list, max_side=1600) -> Image.Image | None:
     return None
 
 
+def _tone(im: Image.Image) -> Image.Image:
+    """Lift dark or flat photos (phones show them small and over a dark UI): autocontrast + brighten if dim."""
+    from PIL import ImageEnhance, ImageStat
+    out = ImageOps.autocontrast(im, cutoff=1)
+    lum = ImageStat.Stat(out.convert("L")).mean[0]
+    if lum < 105:
+        out = ImageEnhance.Brightness(out).enhance(min(1.45, 115 / max(lum, 40)))
+    return ImageEnhance.Color(out).enhance(1.08)
+
+
 def _sheet(thumbs: list[Image.Image | None], path: Path):
     """3x3 numbered contact sheet that Claude looks at."""
     cell = 400
@@ -106,7 +116,8 @@ full-width in the top half with a slow zoom and the headline below it).
 For each slot below, use the Read tool to look at its contact sheet (numbered thumbnails 0-8) and pick the best
 image index, or -1 if none is good enough.
 
-A good pick: clearly and literally shows the subject, is sharp and well lit, works when cropped to the
+A good pick: clearly and literally shows the subject, is sharp, BRIGHT and high-contrast (dark, hazy or
+muddy shots read badly on phones; text sits on top of the photo), works when cropped to the
 central area, and has NO watermark, NO big text/logos, NO recognizable private person, nothing gory or misleading.
 If in doubt, choose -1: a missing photo is fine, a wrong photo is not.
 Also list "backups": other acceptable indices, best first (empty if none).
@@ -203,7 +214,7 @@ def resolve(cfg, spec: dict, outdir: Path):
         if cand is None:
             continue
         p = imgdir / f"photo{k}.jpg"
-        im.save(p, quality=90)
+        _tone(im).save(p, quality=90)
         targets[k][0]["image"] = str(p.resolve())
         credits.append(cand["credit"])
         used += 1

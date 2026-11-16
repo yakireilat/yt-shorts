@@ -119,3 +119,13 @@ def fetch_stats(cfg, ids: list[str]) -> dict:
     except Exception as e:  # analytics can lag 24-48h; never block the pipeline on it
         print("[analytics] skipped:", e)
     return out
+
+
+def fetch_retention(cfg, video_id: str) -> list[tuple[float, float]]:
+    """Audience-retention curve: [(elapsed ratio 0..1, audienceWatchRatio)], ~100 points. >1.0 = rewatches."""
+    ya = _yt(cfg, "youtubeAnalytics", "v2")
+    r = ya.reports().query(
+        ids="channel==MINE", startDate="2020-01-01", endDate=dt.date.today().isoformat(),
+        metrics="audienceWatchRatio", dimensions="elapsedVideoTimeRatio", filters=f"video=={video_id}",
+    ).execute()
+    return [(float(a), float(b)) for a, b in (r.get("rows") or [])]

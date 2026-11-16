@@ -44,7 +44,7 @@ theme = "auto"                   # auto | midnight | ember | mint | paper | ultr
 
 [images]
 enabled = true
-max_per_video = 3                # scenes that may use a real photo
+max_per_video = 5                # scenes that may use a real photo (photos beat icons for concrete subjects)
 licenses = "cc0,pdm,by"          # commercial-safe; add "by-sa" if you accept share-alike
 min_width = 1000
 vision_check = true              # Claude looks at candidates and picks / rejects (uses Read tool on thumbnails)
@@ -58,6 +58,9 @@ claude_review = true             # Claude scores frame 0 + every scene (hook, re
 min_review_score = 6.0           # below this the short is never published
 auto_fix_retries = 1             # on FAIL (or review "fix" below autofix_below): Claude revises + re-render once
 autofix_below = 7.0              # the better of the two versions is kept in the publish queue
+
+[learning]
+min_videos = 5                   # shorts with >=100 views needed before lessons/calibration are (re)written
 
 [audio]
 music_dir = "assets/music"       # drop CC0 / licensed tracks here; empty dir = procedural bed

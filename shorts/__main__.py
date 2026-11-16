@@ -4,6 +4,8 @@
   produce          produce one short only (seed optional: --seed "space")
   build SPEC.json  render a short from an existing spec (no new script)
   qa RUN_DIR       re-run the quality gate on an already rendered short (out/<run-id>)
+  learn            analyse YouTube retention now: recalibrate the reviewer + rewrite data/lessons.md
+  insights         summarise recurring QA/review problems across all rendered shorts
   publish          upload the oldest queued short (respects daily cap)
   stats            refresh YouTube stats (feeds the next ideation prompt)
   auth             one-time YouTube OAuth in your browser
@@ -32,7 +34,7 @@ def _locked(fn):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="shorts", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["run", "produce", "build", "publish", "stats", "auth", "loop", "qa"])
+    ap.add_argument("cmd", choices=["run", "produce", "build", "publish", "stats", "auth", "loop", "qa", "learn", "insights"])
     ap.add_argument("spec", nargs="?")
     ap.add_argument("--config")
     ap.add_argument("--seed")
@@ -59,6 +61,14 @@ def main(argv=None):
         for n in notes:
             print("  -", n)
         return 0 if ok else 1
+    if a.cmd == "learn":
+        from . import analytics
+        analytics.learn(cfg, force=True)
+        return 0
+    if a.cmd == "insights":
+        from . import insights
+        print(insights.report(cfg))
+        return 0
     if a.cmd == "stats":
         return pipeline.refresh_stats(cfg)
 
@@ -74,6 +84,8 @@ def main(argv=None):
         try:
             if cfg.publish.get("enabled"):
                 pipeline.refresh_stats(cfg)
+                from . import analytics
+                analytics.learn(cfg)  # at most once a day: retention -> calibration -> lessons
         except Exception:
             traceback.print_exc()
         return 0

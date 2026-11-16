@@ -107,7 +107,9 @@ REVIEW_SCHEMA = {
 
 REVIEW_PROMPT = """You are a demanding YouTube Shorts editor reviewing a finished vertical short before it goes live.
 Use the Read tool to look at the contact sheet: {sheet}
-Panel "0s" is the very first frame (what viewers see when deciding to swipe). Each other panel is scene N at its
+Panel "0s" is the very first frame (what viewers see when deciding to swipe). The translucent white shapes are
+YouTube's own app UI (top bar, like/comment rail on the right, channel name + title at the bottom). That area is
+covered on every phone, so do NOT count it as empty space; judge emptiness only in the open area above it. Each other panel is scene N at its
 settled moment, in order. Captions in the frames are the live word-by-word subtitles.
 
 Title: {title}
@@ -131,6 +133,24 @@ Return the structured output.
 """
 
 
+def _with_ui(im: Image.Image) -> Image.Image:
+    """Approximate the YouTube Shorts app overlay (top bar, right action rail, bottom title/channel area)."""
+    im = im.copy()
+    ov = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(ov)
+    W, H = im.size
+    d.rectangle([0, 0, W, 120], fill=(0, 0, 0, 70))
+    d.rectangle([0, H - 380, W, H], fill=(0, 0, 0, 95))
+    for k in range(5):  # like / dislike / comments / share / remix
+        cy = 1020 + k * 150
+        d.ellipse([W - 120, cy, W - 40, cy + 80], fill=(255, 255, 255, 150))
+    d.ellipse([40, H - 330, 110, H - 260], fill=(255, 255, 255, 150))
+    d.rounded_rectangle([130, H - 315, 420, H - 275], 8, fill=(255, 255, 255, 140))
+    d.rounded_rectangle([40, H - 230, 760, H - 190], 8, fill=(255, 255, 255, 120))
+    d.rounded_rectangle([40, H - 175, 560, H - 140], 8, fill=(255, 255, 255, 90))
+    return Image.alpha_composite(im.convert("RGBA"), ov).convert("RGB")
+
+
 def contact_sheet(stills: list[tuple[str, Path]], out: Path):
     cw, ch, cols = 360, 640, 5
     rows = (len(stills) + cols - 1) // cols
@@ -143,7 +163,7 @@ def contact_sheet(stills: list[tuple[str, Path]], out: Path):
     for i, (label, p) in enumerate(stills):
         x, y = (i % cols) * cw, (i // cols) * (ch + 44)
         try:
-            im = Image.open(p).convert("RGB").resize((cw - 6, ch - 6))
+            im = _with_ui(Image.open(p).convert("RGB")).resize((cw - 6, ch - 6))
             sheet.paste(im, (x + 3, y + 44 + 3))
         except OSError:
             pass
@@ -155,8 +175,10 @@ def contact_sheet(stills: list[tuple[str, Path]], out: Path):
 def claude_review(cfg, spec, stills, outdir: Path) -> dict:
     sheet = contact_sheet(stills, outdir / "review_sheet.jpg")
     narration = "\n".join(f"{i}. [{s['type']}] {s['narration']}" for i, s in enumerate(spec["scenes"]))
+    from .analytics import calibration_note
     c = cfg.claude
-    cmd = [c["binary"], "-p", REVIEW_PROMPT.format(sheet=sheet, title=spec.get("title", ""), narration=narration),
+    prompt = REVIEW_PROMPT.format(sheet=sheet, title=spec.get("title", ""), narration=narration) + calibration_note(cfg)
+    cmd = [c["binary"], "-p", prompt,
            "--output-format", "json", "--json-schema", json.dumps(REVIEW_SCHEMA), "--allowedTools", "Read",
            "--add-dir", str(outdir), "--disallowedTools", "Bash,Edit,Write,WebSearch,WebFetch"]
     if c.get("model"):
