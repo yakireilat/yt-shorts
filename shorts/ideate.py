@@ -111,6 +111,8 @@ ABSOLUTE RULES
 - On-screen numbers must match the spoken numbers exactly (same unit and rounding: say "fifty-two cents" -> show
   52 with suffix "¢", not 51.5%). Every number the narration stresses should appear on screen in that scene.
 - Avoid text-only frames in the middle of the video: "statement" is for the hook-like turns only.
+  If a scene's narration states a number, use "stat"; a contrast of two or more quantities/eras, use "compare"
+  or "beforeafter"; a mechanism, use "diagram" (flow for 3+ steps); a place or route, use "map".
 - Every hook/statement/outro/stat WITHOUT a photo gets a big animated pictogram: set "icon" to 1-3 concrete, drawable
   nouns, best first (e.g. "snowflake, thermometer", "popcorn", "dna", "ship, anchor", "banknote"). Pick the object
   that IS the idea of that scene, not a generic symbol. Give "icon" keywords even when you also set

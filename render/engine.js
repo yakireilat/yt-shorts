@@ -53,15 +53,15 @@
       d.innerHTML = (badge ? `<div class="badge">${badge}</div>` : "") + `<div class="nl">${esc(it.label)}</div>` + (it.display ? `<div class="nd">${esc(it.display)}</div>` : "");
       box.appendChild(d); fit(d.querySelector(".nl"), w - 50, h - (it.display ? 70 : 30)); nodes.push(d); return d;
     };
-    let H = 640;
+    let H = 770;
     if (layout === "flow") {
-      const gap = 60, nh = Math.min(200, (H - gap * (n - 1)) / n); H = n * nh + (n - 1) * gap;
+      const gap = 58, nh = Math.min(210, (H - gap * (n - 1)) / n); H = n * nh + (n - 1) * gap;
       items.forEach((it, k) => mk(it, 30, k * (nh + gap), 800, nh, "", k + 1));
       for (let k = 0; k < n - 1; k++) arrows.push(arrowPath(svg, [[430, k * (nh + gap) + nh + 6], [430, (k + 1) * (nh + gap) - 8]]));
     } else {
       H = 680; const cx = 430, cy = 340;
       if (layout === "cycle") {
-        const rx = 262, ry = 245, w = 290, h = 140;
+        const rx = 262, ry = 262, w = n <= 3 ? 336 : 300, h = n <= 3 ? 170 : 148;
         const ang = items.map((_, k) => -Math.PI / 2 + (2 * Math.PI * k) / n);
         items.forEach((it, k) => mk(it, cx + rx * Math.cos(ang[k]) - w / 2, cy + ry * Math.sin(ang[k]) - h / 2, w, h, "", k + 1));
         for (let k = 0; k < n; k++) {
@@ -218,7 +218,8 @@
     if (!(a.image && b.image)) { a = { ...a, image: null }; b = { ...b, image: null }; } // photos on both sides or neither
     const box = document.createElement("div"); box.className = "ba"; el.appendChild(box);
     const myth = /myth|wrong|false|fake|misconception|belief|assum/i.test(a.label || "");
-    const side = (it, cls) => `<div class="side ${cls}${it.image ? " withimg" : ""}${cls === "before" && myth ? " myth" : ""}">${it.image ? `<img src="${esc(fileUrl(it.image))}">` : ""}<div class="tagl">${esc(it.label)}</div><div class="big">${esc(it.display || "")}</div></div>`;
+    const pos = (it) => (it.image_focus ? ` style="object-position:${it.image_focus[0]}% ${it.image_focus[1]}%"` : "");
+    const side = (it, cls) => `<div class="side ${cls}${it.image ? " withimg" : ""}${cls === "before" && myth ? " myth" : ""}">${it.image ? `<img src="${esc(fileUrl(it.image))}"${pos(it)}>` : ""}<div class="tagl">${esc(it.label)}</div><div class="big">${esc(it.display || "")}</div></div>`;
     box.innerHTML = side(a, "before") + side(b, "after") + `<div class="handle"></div>`;
     box.querySelectorAll(".big").forEach((e) => fit(e, 760, 200));
     // sweep when the narration reaches its second sentence
@@ -333,11 +334,12 @@
       el._glyph = buildGlyph(sc.icon_nodes);
       el.insertBefore(el._glyph, el.firstChild);
       const ph = $(".hl", el);
-      if (ph) fitGrow(ph, 860, sc.type === "hook" ? 430 : 400, sc.type === "hook" ? 158 : 140);
+      if (ph) fitGrow(ph, 860, sc.type === "hook" ? 440 : 430, sc.type === "hook" ? 166 : 160);
     }
     if (sc.image && sc.type !== "beforeafter") {
       const ph = document.createElement("div"); ph.className = "photo";
       ph.innerHTML = `<img src="${esc(fileUrl(sc.image))}">`; $("#photos").appendChild(ph);
+      if (sc.image_focus) ph.firstChild.style.objectPosition = `${sc.image_focus[0]}% ${sc.image_focus[1]}%`;
       el._photo = ph; el.classList.add("hasphoto");
     }
     // auto-fit headline font size so it never overflows

@@ -137,6 +137,23 @@ def _load(url_or_list, max_side=1600) -> Image.Image | None:
     return None
 
 
+def focus_point(im: Image.Image) -> list[float]:
+    """Where the subject probably is (percent x, y): centroid of local detail, weighted towards the centre.
+    The renderer crops photos around it instead of blindly centring (a Moon at the edge stays in frame)."""
+    from PIL import ImageFilter
+    import numpy as np
+    g = im.convert("L").resize((160, int(160 * im.height / im.width) or 1))
+    e = np.asarray(g.filter(ImageFilter.FIND_EDGES).filter(ImageFilter.GaussianBlur(6)), dtype=float)
+    h, w = e.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    centre = np.exp(-(((xx - w / 2) / (0.7 * w)) ** 2 + ((yy - h / 2) / (0.7 * h)) ** 2))
+    wgt = e * centre
+    if wgt.sum() <= 0:
+        return [50.0, 50.0]
+    fx, fy = (xx * wgt).sum() / wgt.sum() / w * 100, (yy * wgt).sum() / wgt.sum() / h * 100
+    return [round(float(min(85, max(15, fx))), 1), round(float(min(85, max(15, fy))), 1)]
+
+
 def _tone(im: Image.Image) -> Image.Image:
     """Lift dark or flat photos (phones show them small and over a dark UI): autocontrast + brighten if dim."""
     from PIL import ImageEnhance, ImageStat
@@ -272,7 +289,9 @@ def resolve(cfg, spec: dict, outdir: Path):
         if cand is None:
             continue
         p = imgdir / f"photo{k}.jpg"
-        _tone(im).save(p, quality=90)
+        im = _tone(im)
+        im.save(p, quality=90)
+        targets[k][0]["image_focus"] = focus_point(im)
         targets[k][0]["image"] = str(p.resolve())
         credits.append(cand["credit"])
         used += 1
