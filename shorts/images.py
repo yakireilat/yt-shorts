@@ -7,6 +7,7 @@ Sources (no API keys needed):
 """
 import io
 import json
+import re
 import subprocess
 import tempfile
 import urllib.parse
@@ -26,7 +27,7 @@ def _get(url, **kw):
     return r
 
 
-def search_openverse(q: str, licenses: str, min_w: int, n=8) -> list[dict]:
+def search_openverse(q: str, licenses: str, min_w: int, n=12) -> list[dict]:
     params = {"q": q, "license": licenses, "page_size": 20, "mature": "false"}
     r = _get("https://api.openverse.org/v1/images/?" + urllib.parse.urlencode(params)).json()
     out = []
@@ -38,6 +39,7 @@ def search_openverse(q: str, licenses: str, min_w: int, n=8) -> list[dict]:
             lic = "Public domain" if it["license"] == "pdm" else "CC0"
         out.append({
             "url": it["url"], "thumb": it["thumbnail"], "w": it.get("width"), "h": it.get("height"),
+            "creator": it.get("creator") or "",
             "title": it.get("title") or "", "credit": f"\"{it.get('title') or 'Untitled'}\" by {it.get('creator') or 'unknown'} ({lic}), "
                                                     f"{it.get('foreign_landing_url') or ''}".strip(),
         })
@@ -56,7 +58,70 @@ def search_nasa(q: str, n=6) -> list[dict]:
             continue
         base = thumb.rsplit("~", 1)[0]
         out.append({"url": [base + "~large.jpg", base + "~orig.jpg", thumb], "thumb": thumb, "title": d.get("title", ""),
+                    "creator": "nasa-" + str(d.get("nasa_id", ""))[:3],
                     "credit": f"\"{d.get('title', '')}\" — NASA ({d.get('nasa_id')}), public domain"})
+    return out
+
+
+SPACEY = re.compile(r"\b(satellite|rocket|orbit|space|planet|moon|mars|jupiter|saturn|galaxy|nebula|astronaut|"
+                    r"telescope|iss|shuttle|comet|asteroid|sun|solar|nasa|launch)\b", re.I)
+
+
+def search_wikimedia(q: str, licenses: str, min_w: int, n=10) -> list[dict]:
+    """Wikimedia Commons file search (often better than Openverse for named objects and places)."""
+    allow_sa = "by-sa" in licenses
+    params = {"action": "query", "format": "json", "generator": "search", "gsrsearch": f"filetype:bitmap {q}",
+              "gsrnamespace": 6, "gsrlimit": 20, "prop": "imageinfo", "iiprop": "url|extmetadata|size", "iiurlwidth": 600}
+    r = _get("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(params)).json()
+    out = []
+    for page in sorted((r.get("query") or {}).get("pages", {}).values(), key=lambda p: p.get("index", 99)):
+        ii = (page.get("imageinfo") or [{}])[0]
+        meta = ii.get("extmetadata") or {}
+        lic = re.sub(r"<[^>]+>", "", (meta.get("LicenseShortName") or {}).get("value", "")).strip()
+        ok = lic.lower().startswith(("cc0", "public domain", "pd")) or re.match(r"cc by \d", lic.lower()) or \
+            (allow_sa and lic.lower().startswith("cc by-sa"))
+        if not ok or (ii.get("width") or 0) < min_w:
+            continue
+        artist = re.sub(r"<[^>]+>", "", (meta.get("Artist") or {}).get("value", "unknown")).strip()[:60]
+        title = page.get("title", "").removeprefix("File:").rsplit(".", 1)[0]
+        out.append({"url": ii.get("url"), "thumb": ii.get("thumburl"), "w": ii.get("width"), "h": ii.get("height"),
+                    "title": title, "creator": artist,
+                    "credit": f"\"{title}\" by {artist} ({lic}), {ii.get('descriptionurl', '')}".strip()})
+        if len(out) >= n:
+            break
+    return out
+
+
+def gather(q: str, src: str, licenses: str, min_w: int, n: int = 9) -> list[dict]:
+    """Candidates from every source with simplified-query fallbacks; max 2 per creator, no duplicates."""
+    words = q.split()
+    variants = [q] + ([" ".join(words[:2]), " ".join(words[-2:])] if len(words) > 2 else []) + \
+        ([words[-1]] if len(words) == 2 else [])
+    pools = []
+    for v in dict.fromkeys(variants):
+        for fn in ([lambda x: search_nasa(x)] if src == "nasa" or SPACEY.search(v) else []) + \
+                [lambda x: search_openverse(x, licenses, min_w, 12), lambda x: search_wikimedia(x, licenses, min_w)]:
+            try:
+                pools.append(fn(v))
+            except Exception as e:  # one source down (rate limit, outage) must not stop the others
+                print(f"  images: a source failed for '{v}': {str(e)[:80]}")
+        if sum(map(len, pools)) >= 3 * n:
+            break
+    out, seen, per_creator = [], set(), {}
+    for i in range(max((len(p) for p in pools), default=0)):  # round-robin across sources for variety
+        for p in pools:
+            if i >= len(p):
+                continue
+            c = p[i]
+            key = (c.get("title") or "").lower().strip()[:40] or c["thumb"]
+            who = (c.get("creator") or "?").lower()
+            if c["thumb"] in seen or key in seen or per_creator.get(who, 0) >= 2:
+                continue
+            seen.update({c["thumb"], key})
+            per_creator[who] = per_creator.get(who, 0) + 1
+            out.append(c)
+            if len(out) >= n:
+                return out
     return out
 
 
@@ -170,14 +235,7 @@ def resolve(cfg, spec: dict, outdir: Path):
         slots = []
         for k, q in queries.items():
             holder, _, src, ctx = targets[k]
-            try:
-                found = search_nasa(q) if src == "nasa" else search_openverse(q, licenses, min_w)
-                if not found and len(q.split()) > 2:
-                    found = search_openverse(" ".join(q.split()[:2]), licenses, min_w)
-            except Exception as e:
-                print(f"  images: search failed for '{q}': {e}")
-                continue
-            found = found[:9]
+            found = gather(q, src, licenses, min_w)
             thumbs = [_load(f["thumb"], 600) for f in found]
             found = [f for f, t in zip(found, thumbs) if t is not None]
             thumbs = [t for t in thumbs if t is not None]

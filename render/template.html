@@ -139,7 +139,7 @@ body { font-family: "Inter Tight", system-ui, sans-serif; color: var(--ink); -we
   padding: 10px 20px; border-radius: 12px; background: color-mix(in srgb, currentColor 14%, transparent); margin-bottom: 18px; }
 .ba .big { position: relative; z-index: 2; font-size: 64px; font-weight: 850; letter-spacing: -0.035em; line-height: 1.0; max-width: 760px; }
 .ba .side.before .big { color: color-mix(in srgb, var(--ink) 88%, transparent); }
-.ba .side.before.myth .big { text-decoration: line-through; text-decoration-thickness: 6px; text-decoration-color: color-mix(in srgb, var(--a2) 80%, transparent); }
+.ba .side.before.myth .big { color: var(--ink); text-decoration: line-through; text-decoration-thickness: 7px; text-decoration-color: var(--a2); }
 .ba .side.before.withimg .big { color: rgba(255,255,255,.85); }
 .ba .handle { position: absolute; left: 0; right: 0; height: 12px; z-index: 5; }
 .ba .handle::after { content: "↓"; position: absolute; left: 50%; top: 50%; width: 70px; height: 70px; margin: -35px 0 0 -35px; border-radius: 50%;
@@ -164,6 +164,15 @@ body { font-family: "Inter Tight", system-ui, sans-serif; color: var(--ink); -we
 .glyph.sm .disc { inset: 22px; }
 
 .scene.bigstat .statlabel { margin-top: 40px; }
+
+/* kicker stays readable on photos */
+.scene.hasphoto .kicker span { background: color-mix(in srgb, var(--bg1) 78%, transparent); padding: 6px 14px; border-radius: 10px; }
+/* comparisons with 1-2 bars: bigger, so the frame isn't half empty */
+.compare.few .bar { margin-bottom: 64px; }
+.compare.few .bar .lab { font-size: 60px; }
+.compare.few .bar .lab span:last-child { font-size: 62px; }
+.compare.few .bar .trk { height: 104px; border-radius: 22px; }
+.compare.few .bar .fill { border-radius: 22px; }
 
 /* captions */
 #cap { position: absolute; left: 84px; right: 150px; top: 1388px; height: 150px; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 0 18px;

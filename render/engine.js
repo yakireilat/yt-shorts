@@ -214,7 +214,8 @@
 
   // ---------- before / after ----------
   function buildBA(el, sc, i) {
-    const [a, b] = sc.items;
+    let [a, b] = sc.items;
+    if (!(a.image && b.image)) { a = { ...a, image: null }; b = { ...b, image: null }; } // photos on both sides or neither
     const box = document.createElement("div"); box.className = "ba"; el.appendChild(box);
     const myth = /myth|wrong|false|fake|misconception|belief|assum/i.test(a.label || "");
     const side = (it, cls) => `<div class="side ${cls}${it.image ? " withimg" : ""}${cls === "before" && myth ? " myth" : ""}">${it.image ? `<img src="${esc(fileUrl(it.image))}">` : ""}<div class="tagl">${esc(it.label)}</div><div class="big">${esc(it.display || "")}</div></div>`;
@@ -284,7 +285,8 @@
   function build(sc, i) {
     const el = document.createElement("div");
     el.className = `scene ${sc.type}`;
-    const kick = sc.kicker && sc.type !== "hook" ? `<div class="kicker">${esc(sc.kicker)}</div>` : "";
+    const kickTxt = sc.kicker && sc.type !== "hook" && norm(sc.kicker) !== norm(J.series || "") ? sc.kicker : "";
+    const kick = kickTxt ? `<div class="kicker"><span>${esc(kickTxt)}</span></div>` : "";
     let h = "";
     switch (sc.type) {
       case "stat":
@@ -293,8 +295,9 @@
       case "compare": {
         const items = (sc.items || []).slice(0, 4);
         const max = Math.max(...items.map((x) => Math.abs(x.value || 0)), 1e-9);
+        if (items.length <= 2) el.classList.add("few");
         h = `${kick}<div class="title2 hl">${headlineHTML(sc.headline, sc.emphasis)}</div>` + items.map((x, k) =>
-          `<div class="bar ${k === 0 ? "" : ""}" data-r="${Math.max(0.012, Math.abs(x.value || 0) / max)}"><div class="lab"><span>${esc(x.label)}</span><span>${esc(x.display ?? x.value ?? "")}</span></div><div class="trk"><div class="fill"></div></div></div>`).join("");
+          `<div class="bar" data-r="${Math.max(0.012, Math.abs(x.value || 0) / max)}"><div class="lab"><span>${esc(x.label)}</span><span>${esc(x.display ?? x.value ?? "")}</span></div><div class="trk"><div class="fill"></div></div></div>`).join("");
         break;
       }
       case "list":
