@@ -20,7 +20,8 @@ claude                                       # once: log in with your Claude sub
 .venv/bin/python -m shorts produce           # → out/<run-id>/final.mp4
 ```
 
-Every run folder contains `final.mp4`, `thumb.png`, a still per scene, `spec.json` (script + sources) and audio stems.
+Every run folder contains `final.mp4`, `thumb.png`, a still per scene, `spec.json` (script + sources), audio stems
+and `qa.json`: the quality report with the score, layout/loudness/narration findings and Claude's review.
 
 ## Commands
 
@@ -28,7 +29,8 @@ Every run folder contains `final.mp4`, `thumb.png`, a still per scene, `spec.jso
 |---|---|
 | `python -m shorts produce [--seed "space"]` | research + make one short (no upload) |
 | `python -m shorts build out/<id>/spec.json` | re-render an existing/hand-edited script, no Claude call |
-| `python -m shorts publish` | upload the oldest queued short that passed QA (respects the daily cap) |
+| `python -m shorts qa out/<run-id>` | re-run the quality gate on a rendered short (prints score + every issue) |
+| `python -m shorts publish` | upload the highest-scoring queued short that passed QA (respects the daily cap) |
 | `python -m shorts run` | produce + publish + refresh stats: **what the hourly timer calls** |
 | `python -m shorts stats` | pull views / avg-% viewed; best & worst feed the next prompt |
 | `python -m shorts auth` | one-time YouTube OAuth |

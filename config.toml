@@ -49,6 +49,16 @@ licenses = "cc0,pdm,by"          # commercial-safe; add "by-sa" if you accept sh
 min_width = 1000
 vision_check = true              # Claude looks at candidates and picks / rejects (uses Read tool on thumbnails)
 
+[quality]
+narration_check = true           # faster-whisper transcribes the voice and compares it to the script
+whisper_model = "small.en"       # tiny.en / base.en are faster, small.en is more accurate (~6 s per short on CPU)
+max_wer_warn = 0.06
+max_wer_fail = 0.15
+claude_review = true             # Claude scores frame 0 + every scene (hook, readability, design, match)
+min_review_score = 6.0           # below this the short is never published
+auto_fix_retries = 1             # on FAIL (or review "fix" below autofix_below): Claude revises + re-render once
+autofix_below = 7.0              # the better of the two versions is kept in the publish queue
+
 [audio]
 music_dir = "assets/music"       # drop CC0 / licensed tracks here; empty dir = procedural bed
 music_db = -21

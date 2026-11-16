@@ -38,6 +38,9 @@ def connect(cfg):
     con = sqlite3.connect(path)
     con.row_factory = sqlite3.Row
     con.executescript(SCHEMA)
+    cols = {r[1] for r in con.execute("pragma table_info(videos)")}
+    if "score" not in cols:  # migration for databases created before the quality gate
+        con.execute("alter table videos add column score real")
     return con
 
 
@@ -46,12 +49,12 @@ def recent_topics(con, n=150):
     return [f"{r['topic']} | {r['title']}" for r in rows]
 
 
-def insert_video(con, run_id, spec, path, duration, qa_ok, qa_notes, status):
+def insert_video(con, run_id, spec, path, duration, qa_ok, qa_notes, status, score=None):
     con.execute(
-        "insert or replace into videos(run_id, created_at, topic, title, spec, path, duration, qa_ok, qa_notes, status)"
-        " values(?,?,?,?,?,?,?,?,?,?)",
+        "insert or replace into videos(run_id, created_at, topic, title, spec, path, duration, qa_ok, qa_notes, status, score)"
+        " values(?,?,?,?,?,?,?,?,?,?,?)",
         (run_id, time.time(), spec.get("topic"), spec.get("title"), json.dumps(spec), str(path),
-         duration, int(qa_ok), "; ".join(qa_notes), status),
+         duration, int(qa_ok), "; ".join(qa_notes), status, score),
     )
     con.commit()
 

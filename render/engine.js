@@ -61,7 +61,7 @@
     } else {
       H = 680; const cx = 430, cy = 340;
       if (layout === "cycle") {
-        const rx = 280, ry = 245, w = 300, h = 140;
+        const rx = 262, ry = 245, w = 290, h = 140;
         const ang = items.map((_, k) => -Math.PI / 2 + (2 * Math.PI * k) / n);
         items.forEach((it, k) => mk(it, cx + rx * Math.cos(ang[k]) - w / 2, cy + ry * Math.sin(ang[k]) - h / 2, w, h, "", k + 1));
         for (let k = 0; k < n; k++) {
@@ -70,7 +70,7 @@
           arrows.push(arrowPath(svg, pts));
         }
       } else { // hub
-        const w0 = 320, h0 = 160, w = 270, h = 130, rx = 300, ry = 255;
+        const w0 = 300, h0 = 160, w = 250, h = 130, rx = 268, ry = 255;
         mk(items[0], cx - w0 / 2, cy - h0 / 2, w0, h0, "center");
         const sat = items.slice(1);
         sat.forEach((it, k) => {
@@ -151,7 +151,7 @@
     pinEls.forEach((pin, k) => {
       const tag = pin.querySelector(".tag");
       const x = parseFloat(pin.style.left), y = parseFloat(pin.style.top), w = tag.offsetWidth || 200, h = 56;
-      const opts = [[26, -h - 2], [-26 - w, -h - 2], [26, 2], [-26 - w, 2], [-w / 2, -h - 30], [-w / 2, 30]];
+      const opts = [[26, -h - 4], [-26 - w, -h - 4], [26, 8], [-26 - w, 8], [-w / 2, -h - 30], [-w / 2, 30], [26, -h - 44], [26, 48], [-26 - w, -h - 44], [-26 - w, 48]];
       if (x > W * 0.62) opts.unshift(opts.splice(1, 1)[0]);
       let best = opts[0], bestCost = Infinity;
       for (const [dx, dy] of opts) {
@@ -213,7 +213,7 @@
     const box = document.createElement("div"); box.className = "ba"; el.appendChild(box);
     const side = (it, cls) => `<div class="side ${cls}${it.image ? " withimg" : ""}">${it.image ? `<img src="${esc(fileUrl(it.image))}">` : ""}<div class="tagl">${esc(it.label)}</div><div class="big">${esc(it.display || "")}</div></div>`;
     box.innerHTML = side(a, "before") + side(b, "after") + `<div class="handle"></div>`;
-    box.querySelectorAll(".big").forEach((e) => fit(e, 760, 320));
+    box.querySelectorAll(".big").forEach((e) => fit(e, 760, 200));
     // sweep when the narration reaches its second sentence
     const ws = (J.timeline.scenes[i] || {}).words || [];
     const k = ws.findIndex((w, j) => /[.!?]$/.test(w.w) && j < ws.length - 1);
@@ -223,10 +223,12 @@
   }
   function renderBA(el, sc, lt, dur) {
     const B = el._ba; if (!B) return;
-    const at = B.sweepAt ?? dur * 0.45, p = easeInOut(prog(lt, at, 0.9));
-    const x = 100 - p * 100;
-    B.after.style.clipPath = `inset(0 0 0 ${x}%)`;
-    B.handle.style.left = `${x}%`; B.handle.style.opacity = p > 0 && p < 1 ? 1 : 0;
+    const at = B.sweepAt ?? dur * 0.45, p = easeInOut(prog(lt, at, 0.8));
+    const H = 700, half = (H - 12) / 2;
+    B.before.style.height = `${lerp(H, half, p)}px`;
+    B.after.style.top = `${H - half}px`; B.after.style.height = `${half}px`;
+    B.after.style.clipPath = `inset(${(1 - p) * 100}% 0 0 0 round 0 0 40px 40px)`;
+    B.handle.style.top = `${lerp(H, H - half - 6, p)}px`; B.handle.style.opacity = p > 0 && p < 1 ? 1 : 0;
     const bi = B.before.querySelector("img"), ai = B.after.querySelector("img");
     if (bi) bi.style.transform = `scale(${lerp(1.1, 1.0, clamp(lt / dur))})`;
     if (ai) ai.style.transform = `scale(${lerp(1.12, 1.0, clamp(lt / dur))})`;
@@ -262,8 +264,8 @@
         h = `${kick}<div class="title2 hl">${headlineHTML(sc.headline, sc.emphasis)}</div>`;
         break;
       case "outro":
-        h = `${kick}<div class="hl">${headlineHTML(sc.headline, sc.emphasis)}</div>` +
-          `<div class="loop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.2L3 16M3 21v-5h5"/></svg><span>${esc(J.handle || J.series)}</span></div>`;
+        h = `${kick}<div class="hl">${headlineHTML(sc.headline, sc.emphasis)}</div>` + (!J.handle ? "" :
+          `<div class="loop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.2L3 16M3 21v-5h5"/></svg><span>${esc(J.handle)}</span></div>`);
         break;
       default:
         h = `${kick}<div class="hl">${headlineHTML(sc.headline, sc.emphasis)}</div>`;
@@ -389,7 +391,9 @@
         $(".statnum", el).style.transformOrigin = "left bottom";
         const pl = easeOut(prog(lt, 0.35, 0.5));
         $(".statlabel", el).style.opacity = pl; $(".statlabel", el).style.transform = `translateY(${(1 - pl) * 24}px)`;
-        const pct = /%/.test(sc.suffix || "") ? clamp((sc.value || 0) / 100) : 1;
+        const pct = clamp((sc.value || 0) / 100);
+        const bar = $(".statbar", el);
+        bar.style.display = /%/.test(sc.suffix || "") && pct >= 0.12 ? "" : "none"; // only when the bar means something
         $(".statbar i", el).style.width = `${p * pct * 100}%`;
         break;
       }
@@ -435,6 +439,54 @@
       }
     }
   }
+
+
+  // ---------- layout QA: run after renderAt(t) at a scene's settled frame ----------
+  const SAFE = { top: 150, bottom: 1560, left: 36, right: 1044, railX: 945, railY: 880 };
+  function effOpacity(el) { let o = 1; for (let e = el; e && e !== document.body; e = e.parentElement) o *= parseFloat(getComputedStyle(e).opacity); return o; }
+  function inter(a, b) { const w = Math.min(a.right, b.right) - Math.max(a.left, b.left), h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top); return w > 0 && h > 0 ? w * h : 0; }
+  window.layoutCheck = (si) => {
+    const issues = [], o = S[si]; if (!o) return issues;
+    const el = o.el, add = (kind, detail) => issues.push({ scene: si, type: o.sc.type, kind, detail });
+    const TEXT = ".kicker, .hl, .title2, .statnum, .statlabel, .nl, .nd, .li .t, .ev .yr, .ev .tx, .ba .big, .ba .tagl, .bar .lab, .pin .tag";
+    const BOX = ".node, .mapbox, .ba, .bar, .li, .ev, .statbar, .pin .tag, .statnum";
+    const label = (e) => (e.textContent || e.className).trim().replace(/\s+/g, " ").slice(0, 40);
+    const vis = (e) => effOpacity(e) > 0.6;
+    const texts = [...el.querySelectorAll(TEXT)].filter(vis);
+    for (const e of texts) {
+      if (e.scrollWidth > e.clientWidth + 3) add("overflow", `text wider than its box: "${label(e)}"`);
+      const fs = parseFloat(getComputedStyle(e).fontSize) * (e.getBoundingClientRect().height / (e.offsetHeight || 1));
+      if (e.textContent.trim() && fs < 32) add("tiny_text", `${fs.toFixed(0)}px text: "${label(e)}"`);
+    }
+    const boxes = [...el.querySelectorAll(BOX + ", " + TEXT)].filter(vis);
+    for (const e of boxes) {
+      const r = e.getBoundingClientRect(); if (!r.width || !r.height) continue;
+      if (r.left < SAFE.left - 1 || r.right > SAFE.right + 1) add("off_frame", `"${label(e)}" reaches the side edge`);
+      if (r.top < SAFE.top || r.bottom > SAFE.bottom) add("ui_zone", `"${label(e)}" under the Shorts top/bottom UI`);
+      if (r.right > SAFE.railX && r.bottom > SAFE.railY) add("ui_zone", `"${label(e)}" under the like/comment buttons`);
+    }
+    // overlaps between sibling cards / labels
+    const groups = [".node", ".pin .tag", ".li", ".ev", ".bar"];
+    for (const g of groups) {
+      const xs = [...el.querySelectorAll(g)].filter(vis).map((e) => [e, e.getBoundingClientRect()]);
+      for (let a = 0; a < xs.length; a++) for (let b = a + 1; b < xs.length; b++) {
+        const ar = inter(xs[a][1], xs[b][1]), m = Math.min(xs[a][1].width * xs[a][1].height, xs[b][1].width * xs[b][1].height);
+        if (ar > 0.04 * m) add("overlap", `"${label(xs[a][0])}" overlaps "${label(xs[b][0])}"`);
+      }
+    }
+    // captions colliding with content
+    const caps = [...document.querySelectorAll("#cap .cw")].map((e) => e.getBoundingClientRect());
+    if (caps.length) {
+      const c = caps.reduce((u, r) => ({ left: Math.min(u.left, r.left), right: Math.max(u.right, r.right), top: Math.min(u.top, r.top), bottom: Math.max(u.bottom, r.bottom) }));
+      for (const e of boxes) { const r = e.getBoundingClientRect(); if (inter(c, r) > 0.03 * (r.width * r.height)) { add("caption_overlap", `captions cover "${label(e)}"`); break; } }
+      if (c.right > SAFE.railX && c.bottom > SAFE.railY) add("ui_zone", "captions under the like/comment buttons");
+      if (c.top < 600 || c.bottom > SAFE.bottom || c.left < SAFE.left - 1 || c.right > SAFE.right + 1) add("caption_position", "captions outside their zone");
+      const cfs = parseFloat(getComputedStyle(document.querySelector("#cap .cw")).fontSize);
+      if (cfs < 44) add("tiny_text", `captions only ${cfs.toFixed(0)}px`);
+    }
+    const seen = new Set();
+    return issues.filter((x) => { const k = x.kind + x.detail; if (seen.has(k)) return false; seen.add(k); return true; });
+  };
 
   window.renderAt = (t) => {
     const D = J.timeline.duration;

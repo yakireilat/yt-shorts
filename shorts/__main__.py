@@ -2,7 +2,8 @@
 
   run              produce one short, then publish the next queued one (what the hourly timer calls)
   produce          produce one short only (seed optional: --seed "space")
-  build SPEC.json  render a short from an existing spec (no Claude call)
+  build SPEC.json  render a short from an existing spec (no new script)
+  qa RUN_DIR       re-run the quality gate on an already rendered short (out/<run-id>)
   publish          upload the oldest queued short (respects daily cap)
   stats            refresh YouTube stats (feeds the next ideation prompt)
   auth             one-time YouTube OAuth in your browser
@@ -31,7 +32,7 @@ def _locked(fn):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="shorts", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["run", "produce", "build", "publish", "stats", "auth", "loop"])
+    ap.add_argument("cmd", choices=["run", "produce", "build", "publish", "stats", "auth", "loop", "qa"])
     ap.add_argument("spec", nargs="?")
     ap.add_argument("--config")
     ap.add_argument("--seed")
@@ -49,6 +50,15 @@ def main(argv=None):
         return _locked(lambda: pipeline.produce(cfg, a.seed) and 0)
     if a.cmd == "publish":
         return _locked(lambda: pipeline.publish_next(cfg) and 0)
+    if a.cmd == "qa":
+        from pathlib import Path
+        from . import qa
+        d = Path(a.spec)
+        ok, notes, dur, rep = qa.check(cfg, json.load(open(d / "spec.json")), json.load(open(d / "timeline.json")), d)
+        print(f"{'PASS' if ok else 'FAIL'}  score {rep['score']}/10  ({dur:.1f}s)")
+        for n in notes:
+            print("  -", n)
+        return 0 if ok else 1
     if a.cmd == "stats":
         return pipeline.refresh_stats(cfg)
 

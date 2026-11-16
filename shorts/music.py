@@ -31,7 +31,8 @@ def _hz(m):
 
 def _env(n, a, r):
     e = np.ones(n)
-    na, nr = int(a * SR), int(r * SR)
+    na = min(int(a * SR), n // 2)
+    nr = min(int(r * SR), n - na)
     if na:
         e[:na] = np.linspace(0, 1, na)
     if nr:

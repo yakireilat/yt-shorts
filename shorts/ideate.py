@@ -88,8 +88,8 @@ ABSOLUTE RULES
 - Change something on screen every 2-4 seconds: each scene's narration should be 1-2 short sentences (6-25 words).
 - Deliver the payoff (the real "why") in the last third. Build tension before it.
 - Use at least one "stat" scene with a real number, and one of "compare", "list" or "timeline" when it fits.
-- Last scene is type "outro": a one-line takeaway that ALSO flows naturally back into the hook sentence
-  when the video loops (seamless loop). No "like and subscribe".
+- Last scene is type "outro": one COMPLETE sentence (no trailing "..." or dangling "because") that lands the
+  takeaway and whose ending leads naturally back into the hook when the video loops. No "like and subscribe".
 - Headlines: max ~7 words, punchy, not a copy of the narration. "emphasis" = 1-2 words from that headline.
 - compare: 2-4 items with numeric "value" (same unit) and "display" (formatted, e.g. "1,200 km/h").
 - list: 2-4 items with short "label" (<= 5 words).
@@ -101,6 +101,9 @@ ABSOLUTE RULES
   (country names to highlight); "route": true to draw a path through places in order. Headline above the map.
 - beforeafter: exactly 2 items: items[0] = before/old/myth, items[1] = after/new/reality. "label" = short tag
   (e.g. "1900", "Myth", "Without"), "display" = the state in <= 6 words. Optional "image_query" per item.
+- On-screen numbers must match the spoken numbers exactly (same unit and rounding: say "fifty-two cents" -> show
+  52 with suffix "¢", not 51.5%). Every number the narration stresses should appear on screen in that scene.
+- Avoid text-only frames in the middle of the video: "statement" is for the hook-like turns only.
 - Use 2-4 DIFFERENT visual scene types per short. Prefer diagram/map/beforeafter whenever they explain better than words.
 - PHOTOS: you may set "image_query" on up to {max_images} scenes (hook preferred, also statement/beforeafter) when a
   real photo of a CONCRETE, photographable subject helps: an object, animal, place, machine, artifact, spacecraft.
@@ -201,6 +204,41 @@ def make_spec(cfg, avoid: list[str], perf: str = "", seed: str = "", pillar: str
         spec = claude_json(cfg, prompt2, SPEC_SCHEMA, web)
     spec["pillar"] = pillar or spec.get("pillar", "")
     return normalize(spec, cfg)
+
+
+REVISE = """
+You are the editor fixing a YouTube Short that FAILED its quality check. Here is its scene spec JSON:
+
+{spec}
+
+Quality report (layout problems, narration mismatches where the text-to-speech misread words, viewer review):
+{problems}
+
+Rewrite the spec to fix every problem while keeping the topic, facts, sources and overall structure:
+- layout overflow / overlap / tiny text: shorten the offending headline, labels or items (fewer, shorter words).
+- narration mismatch: rephrase words the voice misreads (spell acronyms as spoken, write numbers as words,
+  avoid unusual names or symbols).
+- review issues: apply the suggested fixes; strengthen the hook if it scored low.
+Keep any "image" fields exactly as they are. Return the corrected spec as the structured output.
+""" + GUIDE
+
+
+def revise(cfg, spec: dict, report: dict) -> dict:
+    ch = cfg.channel
+    fmt = dict(series=ch["series_name"], niche=ch["niche"], audience=ch["audience"], tone=ch["tone"],
+               max_images=int(cfg.get("images", {}).get("max_per_video", 3)))
+    problems = {k: report.get(k) for k in ("fails", "warns", "layout", "review")}
+    if report.get("narration"):
+        problems["narration_mismatches"] = report["narration"].get("mismatches")
+    new = claude_json(cfg, REVISE.format(spec=json.dumps(spec, indent=1), problems=json.dumps(problems, indent=1), **fmt),
+                      SPEC_SCHEMA, web=False)
+    # carry over resolved photos and credits even if the model dropped them
+    for old, sc in zip(spec["scenes"], new["scenes"]):
+        if old.get("image") and not sc.get("image"):
+            sc["image"] = old["image"]
+    new["credits"] = spec.get("credits", [])
+    new["pillar"] = spec.get("pillar", "")
+    return normalize(new, cfg)
 
 
 def choose_pillar(cfg, stats: dict[str, list[float]]) -> str:

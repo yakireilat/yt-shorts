@@ -71,6 +71,16 @@ if (job.stills) {
     await page.evaluate((t) => window.renderAt(t), s.t);
     await page.screenshot({ path: s.path, type: "png" });
   }
+  // layout QA at each scene's settled frame (all elements in, before the exit transition)
+  if (job.layoutOut) {
+    const issues = [];
+    for (const [i, sc] of job.timeline.scenes.entries()) {
+      const t = Math.max(sc.start + 0.6, sc.end - 0.35);
+      await page.evaluate((t) => window.renderAt(t), t);
+      issues.push(...(await page.evaluate((i) => window.layoutCheck(i), i)));
+    }
+    fs.writeFileSync(job.layoutOut, JSON.stringify(issues, null, 1));
+  }
   await page.close();
 }
 

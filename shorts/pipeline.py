@@ -5,7 +5,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import db, ideate, images, music, qa, tts
+from . import asr, db, ideate, images, music, qa, tts
 from .compose import mux
 from .config import ROOT, rel
 
@@ -14,12 +14,12 @@ def log(*a):
     print(time.strftime("[%H:%M:%S]"), *a, flush=True)
 
 
-def build_from_spec(cfg, spec: dict, run_id: str | None = None) -> tuple[Path, dict, list, float, bool]:
+def build_from_spec(cfg, spec: dict, run_id: str | None = None, fetch_images: bool = True):
     run_id = run_id or time.strftime("%Y%m%d-%H%M%S")
     outdir = rel(cfg.paths.out) / run_id
     outdir.mkdir(parents=True, exist_ok=True)
     spec = ideate.normalize(spec, cfg)
-    if cfg.get("images", {}).get("enabled", True):
+    if fetch_images and cfg.get("images", {}).get("enabled", True):
         log("images: searching open-licensed photos")
         try:
             images.resolve(cfg, spec, outdir)
@@ -29,8 +29,15 @@ def build_from_spec(cfg, spec: dict, run_id: str | None = None) -> tuple[Path, d
 
     log("voice: synthesizing narration")
     timeline = tts.synth(cfg, spec, outdir)
-    (outdir / "timeline.json").write_text(json.dumps(timeline, indent=1))
     log(f"voice: {timeline['duration']:.1f}s")
+    if cfg.get("quality", {}).get("narration_check", True):
+        try:
+            a = asr.check_and_align(cfg, outdir / "voice.wav", timeline, spec)
+            (outdir / "asr.json").write_text(json.dumps(a, indent=1))
+            log(f"narration: WER {a['wer']:.1%}, captions re-timed from audio")
+        except Exception as e:
+            log(f"narration: check skipped ({e})")
+    (outdir / "timeline.json").write_text(json.dumps(timeline, indent=1))
 
     seed = random.randrange(1 << 30)
     log("audio: music bed + sfx")
@@ -43,8 +50,9 @@ def build_from_spec(cfg, spec: dict, run_id: str | None = None) -> tuple[Path, d
         "handle": cfg.channel.get("handle_cta", ""), "captions": True,
         "video": {"width": v.width, "height": v.height, "fps": v.fps, "crf": v.crf, "workers": v.workers},
         "stills": [{"t": 0.0, "path": str(outdir / "thumb.png")},
-                   *[{"t": round((s["start"] + s["end"]) / 2, 2), "path": str(outdir / f"scene{i}.png")}
+                   *[{"t": round(max(s["start"] + 0.6, s["end"] - 0.35), 2), "path": str(outdir / f"scene{i}.png")}
                      for i, s in enumerate(timeline["scenes"])]],
+        "layoutOut": str(outdir / "layout.json"),
     }
     (outdir / "job.json").write_text(json.dumps(job))
     subprocess.run(["node", str(ROOT / "render" / "render.mjs"), str(outdir / "job.json"), str(outdir / "video.mp4")],
@@ -54,11 +62,14 @@ def build_from_spec(cfg, spec: dict, run_id: str | None = None) -> tuple[Path, d
     final = outdir / "final.mp4"
     mux(cfg, outdir / "video.mp4", outdir / "voice.wav", Path(music_path), sfx_path, timeline["duration"], final)
 
-    ok, notes, dur = qa.check(cfg, spec, timeline, final)
-    log(f"qa: {'PASS' if ok else 'FAIL'} {dur:.1f}s {notes}")
+    log("qa: layout + signal + narration + Claude review")
+    ok, notes, dur, report = qa.check(cfg, spec, timeline, outdir)
+    log(f"qa: {'PASS' if ok else 'FAIL'} score {report['score']}/10, {dur:.1f}s")
+    for n in notes:
+        log(f"    - {n}")
     con = db.connect(cfg)
-    db.insert_video(con, run_id, spec, final, dur, ok, notes, "queued" if ok else "failed")
-    return final, spec, notes, dur, ok
+    db.insert_video(con, run_id, spec, final, dur, ok, notes, "queued" if ok else "failed", report["score"])
+    return final, spec, notes, dur, ok, report
 
 
 def produce(cfg, seed: str | None = None):
@@ -70,7 +81,28 @@ def produce(cfg, seed: str | None = None):
     log(f"ideate: pillar = {pillar}")
     spec = ideate.make_spec(cfg, avoid, perf, seed or "", pillar)
     log(f"ideate: \"{spec['title']}\" ({spec['topic']})")
-    return build_from_spec(cfg, spec)
+    result = build_from_spec(cfg, spec)
+    retries = int(cfg.get("quality", {}).get("auto_fix_retries", 1))
+    for _ in range(retries):
+        final, spec_used, notes, _, ok, report = result
+        if not report.get("needs_fix"):
+            break
+        log("autofix: asking Claude to revise the script for the QA problems, then re-rendering")
+        try:
+            fixed = ideate.revise(cfg, spec_used, report)
+        except Exception as e:
+            log(f"autofix: revision failed ({e})")
+            break
+        time.sleep(1)  # distinct run id
+        new = build_from_spec(cfg, fixed, fetch_images=False)
+        # keep both on disk; only the better passing version stays in the publish queue
+        con = db.connect(cfg)
+        worse, better = sorted([result, new], key=lambda r: (r[4], r[5]["score"]))
+        con.execute("update videos set status='superseded' where path=? and status='queued'", (str(worse[0]),))
+        con.commit()
+        log(f"autofix: kept score {better[5]['score']} over {worse[5]['score']}")
+        result = better
+    return result
 
 
 def publish_next(cfg):
@@ -82,7 +114,9 @@ def publish_next(cfg):
     if db.uploads_last_24h(con) >= int(cfg.publish.get("max_uploads_per_day", 6)):
         log("publish: daily cap reached; leaving in queue")
         return None
-    row = con.execute("select * from videos where status='queued' and qa_ok=1 order by created_at asc limit 1").fetchone()
+    # best first: highest QA score among fresh shorts, newest wins ties
+    row = con.execute("select * from videos where status='queued' and qa_ok=1 and created_at > ? "
+                      "order by coalesce(score, 0) desc, created_at desc limit 1", (time.time() - 7 * 86400,)).fetchone()
     if not row:
         log("publish: queue empty")
         return None

@@ -42,7 +42,7 @@ A fully automatic, local, open-source YouTube Shorts factory.
 | 4 Music/SFX | `shorts/music.py` | procedural synth (numpy) or your CC0 tracks in `assets/music/` | music bed, whooshes |
 | 5 Render | `render/render.mjs` + `render/template.html` | **Playwright + Chromium**, HTML/CSS/SVG, deterministic `renderAt(t)` | 1080×1920 30fps frames → H.264 |
 | 6 Mux | `shorts/compose.py` | **FFmpeg** (sidechain ducking, loudnorm −14 LUFS) | `final.mp4` |
-| 7 QA | `shorts/qa.py` | ffprobe | pass/fail + reasons |
+| 7 QA | `shorts/qa.py`, `shorts/asr.py`, `layoutCheck` in `render/engine.js` | layout check, FFmpeg, faster-whisper, Claude review | score 0–10, FAIL/WARN, auto-fix |
 | 8 Publish | `shorts/publish.py` | YouTube Data API v3 (free) | video id |
 | 9 Learn | `shorts/analytics.py` | YouTube Analytics API (free) | stats in SQLite → next prompt |
 
@@ -69,6 +69,27 @@ Open models (Wan 2.x, LTX-Video, HunyuanVideo) are good but need 12–24 GB VRAM
 and generic AI b-roll is exactly what the July-2025 YPP "inauthentic / mass-produced content" policy targets.
 The renderer has a **plug-in slot** (`image` scene backgrounds) so if you later add a GPU box running
 ComfyUI + FLUX/Wan, you can feed generated stills/clips in — but the core look never depends on it.
+
+## 2b. Quality gate
+
+Every short gets a **0–10 score** and FAIL/WARN notes (`out/<run>/qa.json`). A FAIL is never published, and the
+publisher always takes the **highest-scoring** queued short first. Layers, cheapest first:
+
+| Layer | How | Catches | Cost |
+|---|---|---|---|
+| Script rules | `qa.script_rules` | length, word count, weak hook opener, missing sources, visual monotony | free |
+| **Layout check** | `layoutCheck()` runs in Chromium at each scene's settled frame and measures every element | text overflowing its box, content under the Shorts UI (top bar, title area, like/comment rail), overlapping cards/labels, captions covering content, text < 28 px | free, exact |
+| **Signal** | FFmpeg `ebur128`, `blackdetect`, `freezedetect` (grain blurred out), `silencedetect` | loudness off −14 LUFS, clipping, black frames, frozen picture, dead air in narration | free |
+| **Narration** | faster-whisper `small.en` on CPU (~6 s) transcribes the voice; number-aware diff against the script | TTS mispronunciations, garbled numbers/acronyms, skipped words (WER + exact phrases) | free |
+| **Claude as viewer** | contact sheet of frame 0 + every scene → Claude scores hook ×2, readability, design, match | weak first frame, unreadable or cluttered frames, visuals that don't match the words, numbers that contradict the voice | 1 call |
+
+Side benefit: Whisper's word timestamps **re-time the captions** to the real audio.
+
+**Auto-fix:** on a FAIL, or a "fix" verdict below 7, the whole report goes back to Claude, which revises the
+script: shorter headlines, words the voice can say, the reviewer's fixes. The short is re-rendered once. Both
+versions stay on disk, and only the better passing one stays in the publish queue.
+
+The final check is real viewers: the analytics loop feeds best/worst avg % viewed into the next scripts.
 
 ## 3. YouTube Shorts — algorithm best practice baked in
 
@@ -150,5 +171,7 @@ without you touching it.
       countries, pins, animated route), before/after (wipe reveal, optional photos).
 - [x] **Step 10b — Real photos without a GPU**: Openverse + NASA, Claude vision selection, auto credits.
 - [x] **Step 10c — Pillar rotation with performance weighting.**
-- [ ] **Step 10d — Polish**: A/B titles, faster-whisper re-alignment for exact word timings, Pexels as a 3rd source.
+- [x] **Step 10d — Quality gate**: layout check, FFmpeg signal checks, Whisper narration check + caption re-timing,
+      Claude viewer review, scoring, auto-fix, best-first publishing.
+- [ ] **Step 10e — Polish**: A/B titles, Pexels as a 3rd photo source, calibrate the review score against real retention.
 - [ ] **Step 11 — Multi-channel / multi-language** (Kokoro speaks 8 languages).
