@@ -225,7 +225,10 @@ Rewrite the spec to fix every problem while keeping the topic, facts, sources an
 - narration mismatch: rephrase words the voice misreads (spell acronyms as spoken, write numbers as words,
   avoid unusual names or symbols).
 - review issues: apply the suggested fixes; strengthen the hook if it scored low.
-Keep any "image" fields exactly as they are. Return the corrected spec as the structured output.
+Photos: an existing "image" field is a downloaded photo. You may MOVE it to the scene where its subject first
+appears (copy the exact path and its "image_query"), or drop it. To get a NEW photo, set "image_query" (2-4 literal
+words) on that scene without an "image" field; it will be searched and vetted. Return the corrected spec as the
+structured output.
 """ + GUIDE
 
 
@@ -238,10 +241,11 @@ def revise(cfg, spec: dict, report: dict) -> dict:
         problems["narration_mismatches"] = report["narration"].get("mismatches")
     new = claude_json(cfg, REVISE.format(spec=json.dumps(spec, indent=1), problems=json.dumps(problems, indent=1), **fmt),
                       SPEC_SCHEMA, web=False)
-    # carry over resolved photos and credits even if the model dropped them
-    for old, sc in zip(spec["scenes"], new["scenes"]):
-        if old.get("image") and not sc.get("image"):
-            sc["image"] = old["image"]
+    # only keep photo paths that really exist (the model may move or drop them, never invent them)
+    from pathlib import Path
+    for sc in new["scenes"]:
+        if sc.get("image") and not Path(sc["image"]).exists():
+            sc.pop("image")
     new["credits"] = spec.get("credits", [])
     new["pillar"] = spec.get("pillar", "")
     return normalize(new, cfg)

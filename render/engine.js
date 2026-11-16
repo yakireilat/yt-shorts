@@ -288,7 +288,7 @@
     let h = "";
     switch (sc.type) {
       case "stat":
-        h = `${kick}<div class="statnum"></div><div class="statlabel">${esc(sc.label || sc.headline || "")}</div><div class="statbar"><i></i></div>`;
+        h = `${kick}<div class="statnum"></div><div class="statlabel">${esc(sc.label || sc.headline || "")}</div>`;
         break;
       case "compare": {
         const items = (sc.items || []).slice(0, 4);
@@ -346,6 +346,11 @@
     if (sn) {
       sn.innerHTML = fmtNum(sc.value ?? 0, sc.decimals || 0, sc.prefix, sc.suffix);
       fit(sn, 860, 330);
+    }
+    if (sc.type === "stat" && !sc.icon_nodes && !sc.image) {  // no icon: the number itself becomes the poster
+      el.classList.add("bigstat");
+      fitGrow(sn, 860, 470, 440);
+      fitGrow($(".statlabel", el), 860, 230, 78);
     }
     return el;
   }
@@ -452,10 +457,6 @@
         $(".statnum", el).style.transformOrigin = "left bottom";
         const pl = easeOut(prog(lt, 0.35, 0.5));
         $(".statlabel", el).style.opacity = pl; $(".statlabel", el).style.transform = `translateY(${(1 - pl) * 24}px)`;
-        const pct = clamp((sc.value || 0) / 100);
-        const bar = $(".statbar", el);
-        bar.style.display = /%/.test(sc.suffix || "") && pct >= 0.12 ? "" : "none"; // only when the bar means something
-        $(".statbar i", el).style.width = `${p * pct * 100}%`;
         renderGlyph(el, lt, false);
         break;
       }

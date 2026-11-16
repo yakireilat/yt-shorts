@@ -207,5 +207,5 @@ def resolve(cfg, spec: dict, outdir: Path):
         targets[k][0]["image"] = str(p.resolve())
         credits.append(cand["credit"])
         used += 1
-    spec["credits"] = credits
+    spec["credits"] = list(dict.fromkeys([*spec.get("credits", []), *credits]))
     print(f"  images: {used} photo(s) used")

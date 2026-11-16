@@ -98,7 +98,7 @@ def produce(cfg, seed: str | None = None):
             log(f"autofix: revision failed ({e})")
             break
         time.sleep(1)  # distinct run id
-        new = build_from_spec(cfg, fixed, fetch_images=False)
+        new = build_from_spec(cfg, fixed)  # fetches photos only for newly requested ones
         # keep both on disk; only the better passing version stays in the publish queue
         con = db.connect(cfg)
         worse, better = sorted([result, new], key=lambda r: (r[4], r[5]["score"]))
